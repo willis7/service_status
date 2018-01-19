@@ -1,0 +1,11 @@
+[
+    {
+        "type": "ping",
+        "url": "www.google.com"
+    },
+    {
+        "type": "nc",
+        "url": "www.heise.de",
+        "port": "80"
+    }
+]

@@ -4,32 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"time"
+
+	"github.com/willis7/status/status"
 )
 
-var tools = []string{"curl", "nc", "ping"}
-var tpl *template.Template
-
-type page struct {
-	Title  string
-	Status template.HTML
-	Up     []string
-	Down   map[string]int
-	Time   string
-}
-
 func init() {
-	tpl = template.Must(template.ParseGlob("templates/*.gohtml"))
-}
-
-func status(p page) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		tpl.ExecuteTemplate(w, "status.gohtml", p)
-	}
+	status.LoadTemplate()
 }
 
 // Config holds a list of services to be
@@ -54,18 +37,6 @@ func LoadConfiguration(file string) (Config, error) {
 	return config, nil
 }
 
-// IsInstalled checks the availability of a list of strings passed
-// in as an array
-func IsInstalled(tools []string) {
-	for _, t := range tools {
-		path, err := exec.LookPath(t)
-		if err != nil {
-			log.Fatalf("%s not found on this system", t)
-		}
-		fmt.Printf("%s is available at %s\n", t, path)
-	}
-}
-
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Missing path to config")
@@ -73,42 +44,11 @@ func main() {
 	}
 	configPath := os.Args[1]
 
-	IsInstalled(tools)
-
 	fmt.Println("Starting the application...")
 	// read the config file to determine which services need to be checked
 	config, _ := LoadConfiguration(configPath)
 	// :debug
 	fmt.Println(config)
-
-	// // For each of the services, get their status
-	// var (
-	// 	out []byte
-	// 	err error
-	// )
-	// // PING
-	// google := commands.Ping{URL: "google.com"}
-	// if out, err = google.Command().Output(); err != nil {
-	// 	fmt.Fprintln(os.Stderr, err)
-	// 	os.Exit(1)
-	// }
-	// fmt.Println(string(out))
-
-	// // CURL
-	// google2 := commands.Curl{URL: "google.com"}
-	// if out, err = google2.Command().Output(); err != nil {
-	// 	fmt.Fprintln(os.Stderr, err)
-	// 	os.Exit(1)
-	// }
-	// fmt.Println(string(out))
-
-	// // NC
-	// google3 := commands.NC{URL: "google.com", Port: "80"}
-	// if out, err = google3.Command().Output(); err != nil {
-	// 	fmt.Fprintln(os.Stderr, err)
-	// 	os.Exit(1)
-	// }
-	// fmt.Println(string(out))
 
 	statushtml := template.HTML(`<div class="alert alert-success" role="alert">
 	<span class="glyphicon glyphicon-thumbs-up" aria-hidden="true"></span>
@@ -117,11 +57,11 @@ func main() {
 
 	up := []string{"ping google.com"}
 	down := map[string]int{
-		"ping googlex.com":  60,
-		"nc heisenberg.net": 30,
+		"ping googlex.com":    60,
+		"grep heisenberg.net": 30,
 	}
 
-	p := page{
+	p := status.Page{
 		Title:  "My Status",
 		Status: statushtml,
 		Up:     up,
@@ -130,6 +70,6 @@ func main() {
 	}
 
 	// create and serve the page
-	http.HandleFunc("/", status(p))
+	http.HandleFunc("/", status.Index(p))
 	http.ListenAndServe(":8080", nil)
 }

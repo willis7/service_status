@@ -1,0 +1,56 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{.Title}}</title>
+<meta name="viewport" content="width=device-width">
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container">
+<div class="page-header">
+	<h1>
+		{{.Title}}
+		<span class="pull-right hidden-xs hidden-sm">
+			<a href="$MY_HOMEPAGE_URL" class="btn btn-primary" role="button">
+				<span class="glyphicon glyphicon-home" aria-hidden="true"></span>
+				Homepage
+			</a>
+		</span>
+	</h1>
+</div>
+<p class="hidden-md hidden-lg">
+	<a href="$MY_HOMEPAGE_URL" class="btn btn-primary" role="button">
+		<span class="glyphicon glyphicon-home" aria-hidden="true"></span>
+		Homepage
+	</a>
+</p>
+
+{{.Status}}
+
+<ul class="list-group">
+	<li class="list-group-item list-group-item-success">Operational</li>
+	{{range .Up}}
+	<li class="list-group-item">
+		<span class="badge"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span></span>
+		{{.}}
+	</li>
+	{{end}}
+</ul>
+
+<ul class="list-group">
+	<li class="list-group-item list-group-item-danger">Outage</li>
+	{{range $url, $time := .Down}}
+	<li class="list-group-item">
+	<span class="badge"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+	{{$time}} min</span>
+		{{$url}}
+	</li>
+	{{end}}
+</ul>
+
+<hr>
+</div>
+</body>
+</html>

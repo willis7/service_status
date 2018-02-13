@@ -9,6 +9,7 @@ RUN  apk add --update --no-cache netcat-openbsd \
     curl
 COPY --from=builder /go/bin/status /status
 COPY --from=builder /etc/ssl/certs/ /etc/ssl/certs
+COPY config.json config.json
 
 EXPOSE 3000
 

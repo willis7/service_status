@@ -1,6 +1,8 @@
 package commands
 
-import "os/exec"
+import (
+	"os/exec"
+)
 
 var timeout = "4"
 
@@ -43,6 +45,22 @@ type Curl struct {
 
 // Command calls the curl command line arg
 func (c *Curl) Command() *exec.Cmd {
-	args := []string{"If", "--max-time", timeout, c.URL}
+	args := []string{"-If", "--max-time", timeout, c.URL}
 	return exec.Command("curl", args...)
 }
+
+// // Head implements the Commander interface by
+// // calling the native Go http request
+// type Head struct {
+// 	URL string
+// }
+
+// // Command calls the http.Head command line arg
+// func (c *Head) Command() *exec.Cmd {
+// 	resp, err := http.Head(c.URL)
+// 	if err != nil {
+// 		// handle err
+// 	}
+// 	defer resp.Body.Close()
+
+// }

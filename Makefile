@@ -11,6 +11,9 @@ install:
 build:
 	go build -race -o $(NAME)
 
+run:
+	go run main.go config.json
+
 start:
 	./$(NAME) config.json
 

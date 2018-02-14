@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/willis7/status/status"
+	"github.com/willis7/service_status/status"
 )
 
 func init() {

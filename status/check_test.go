@@ -13,21 +13,21 @@ func TestPingSuccess(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tc := Ping{URL: ts.URL}
+	tc := Ping{Service: Service{URL: ts.URL}}
 	if tc.Status() != nil {
 		t.Fail()
 	}
 }
 
 func TestPingFail(t *testing.T) {
-	tc := Ping{URL: "garbage"}
+	tc := Ping{Service: Service{URL: "garbage"}}
 	if tc.Status() == nil {
 		t.Fail()
 	}
 }
 
 func TestPingStatusCodeFail(t *testing.T) {
-	tc := Ping{URL: "http://google.com/xyzabc"}
+	tc := Ping{Service: Service{URL: "http://google.com/xyzabc"}}
 	actual := tc.Status()
 	expected := ErrServiceUnavailable
 	if actual != expected {
@@ -41,21 +41,21 @@ func TestGrepSuccess(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tc := Grep{URL: ts.URL, Regex: "Hello World!"}
+	tc := Grep{Service: Service{URL: ts.URL, Regex: "Hello World!"}}
 	if tc.Status() != nil {
 		t.Fail()
 	}
 }
 
 func TestGrepFail(t *testing.T) {
-	tc := Grep{URL: "garbage", Regex: "Hello World!"}
+	tc := Grep{Service: Service{URL: "garbage", Regex: "Hello World!"}}
 	if tc.Status() == nil {
 		t.Fail()
 	}
 }
 
 func TestGrepStatusCodeFail(t *testing.T) {
-	tc := Grep{URL: "http://google.com/xyzabc", Regex: "Hello World!"}
+	tc := Grep{Service: Service{URL: "http://google.com/xyzabc", Regex: "Hello World!"}}
 	actual := tc.Status()
 	expected := ErrServiceUnavailable
 	if actual != expected {
@@ -64,7 +64,7 @@ func TestGrepStatusCodeFail(t *testing.T) {
 }
 
 func TestGrepRegexFail(t *testing.T) {
-	tc := Grep{URL: "http://google.com", Regex: "Hello World!"}
+	tc := Grep{Service: Service{URL: "http://google.com", Regex: "Hello World!"}}
 	actual := tc.Status()
 	expected := ErrRegexNotFound
 	if actual != expected {

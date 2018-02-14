@@ -17,17 +17,24 @@ With Make:
 Below is an example config which coveres the implemented checks.
 
 ``` json
-[
+{
+  "services": [
     {
         "type": "ping",
-        "url": "www.google.com"
+        "url": "http://google.com"
     },
     {
-        "type": "grep",
-        "url": "www.heise.de",
-        "regex": "hello world"
+      "type": "grep",
+      "url": "https://stackoverflow.com/",
+      "regex": "Ask Question"
+    },
+    {
+      "type": "grep",
+      "url": "https://www.bbc.co.uk/",
+      "regex": "hello world"
     }
-]
+  ]
+}
 ```
 
 TODO: Write more usage instructions

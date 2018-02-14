@@ -1,11 +1,18 @@
-[
+{
+  "services": [
     {
         "type": "ping",
-        "url": "www.google.com"
+        "url": "http://google.com"
     },
     {
-        "type": "nc",
-        "url": "www.heise.de",
-        "port": "80"
+      "type": "grep",
+      "url": "https://stackoverflow.com/",
+      "regex": "Ask Question"
+    },
+    {
+      "type": "grep",
+      "url": "https://www.bbc.co.uk/",
+      "regex": "hello world"
     }
-]
+  ]
+}

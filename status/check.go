@@ -11,6 +11,7 @@ import (
 var (
 	ErrServiceUnavailable = errors.New("commands: service unavailable")
 	ErrRegexNotFound      = errors.New("commands: regex not found")
+	ErrInvalidCreate      = errors.New("commands: invalid type for create")
 )
 
 // Service represents a single endpoint to be tested
@@ -21,15 +22,17 @@ type Service struct {
 	Regex string `json:"regex,omitempty"`
 }
 
-// Pinger is an interface for all modes of testing
-// a services availability
+// Pinger is an interface which describes how
+// to test a service status
 type Pinger interface {
 	GetService() *Service
 	Status() error
 }
 
+// PingerFactory is a single method interface which describes
+// how to create a Pinger object.
 type PingerFactory interface {
-	Create(Service) Pinger
+	Create(Service) (Pinger, error)
 }
 
 // Ping performs a ping-like test of a
@@ -58,12 +61,18 @@ func (p *Ping) Status() error {
 	return nil
 }
 
+// PingFactory implements the PingerFactory
+// interface
 type PingFactory struct{}
 
-func (factory *PingFactory) Create(s Service) Pinger {
+// Create returns a pointer to a Pinger
+func (factory *PingFactory) Create(s Service) (Pinger, error) {
+	if s.Type != "ping" {
+		return nil, ErrInvalidCreate
+	}
 	return &Ping{
 		Service: Service{URL: s.URL},
-	}
+	}, nil
 }
 
 // Grep checks a response body for a value
@@ -99,12 +108,19 @@ func (p *Grep) Status() error {
 	return nil
 }
 
+// GrepFactory implements the PingerFactory
+// interface
 type GrepFactory struct{}
 
-func (factory *GrepFactory) Create(s Service) Pinger {
+// Create returns a pointer to a Pinger
+func (factory *GrepFactory) Create(s Service) (Pinger, error) {
+	if s.Type != "grep" {
+		return nil, ErrInvalidCreate
+	}
+
 	return &Grep{
 		Service: Service{URL: s.URL, Regex: s.Regex},
-	}
+	}, nil
 }
 
 // validStatus checks the input against a list of known-good

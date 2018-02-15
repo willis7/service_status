@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -22,21 +24,29 @@ type Config struct {
 }
 
 // CreateFactories will return a slice of Pinger concrete services
-func (c *Config) CreateFactories() []status.Pinger {
+func (c *Config) CreateFactories() ([]status.Pinger, error) {
 	var checks []status.Pinger
 
 	for _, service := range c.Services {
 		switch service.Type {
 		case "ping":
-			p := status.PingFactory{}
-			checks = append(checks, p.Create(service))
+			pf := status.PingFactory{}
+			p, err := pf.Create(service)
+			if err != nil {
+				return nil, errors.New("failed to create ping object")
+			}
+			checks = append(checks, p)
 		case "grep":
-			g := status.GrepFactory{}
-			checks = append(checks, g.Create(service))
+			gf := status.GrepFactory{}
+			g, err := gf.Create(service)
+			if err != nil {
+				return nil, errors.New("failed to create ping object")
+			}
+			checks = append(checks, g)
 		}
 	}
 
-	return checks
+	return checks, nil
 }
 
 // LoadConfiguration takes a configuration file and returns
@@ -64,7 +74,10 @@ func main() {
 	// read the config file to determine which services need to be checked
 	config, _ := LoadConfiguration(configPath)
 
-	services := config.CreateFactories()
+	services, err := config.CreateFactories()
+	if err != nil {
+		log.Fatalf("create factories: %v", err)
+	}
 
 	down := make(map[string]int)
 	var up []string

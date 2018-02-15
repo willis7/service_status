@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 )
 
@@ -32,6 +33,31 @@ func TestPingStatusCodeFail(t *testing.T) {
 	expected := ErrServiceUnavailable
 	if actual != expected {
 		t.Errorf("expected %v got %v", expected, actual)
+	}
+}
+
+func TestPingFactoryCreate(t *testing.T) {
+	s := Service{Type: "ping", URL: "test"}
+	p := PingFactory{}
+	actual, err := p.Create(s)
+	if err != nil {
+		t.Fatalf("failed create with error: %v", err)
+	}
+
+	expected := &Ping{Service: Service{URL: "test"}}
+	ap := reflect.ValueOf(actual)
+	ep := reflect.ValueOf(expected)
+	if ap.Pointer() == ep.Pointer() {
+		t.Errorf("expected %v got %v", ap.Pointer(), ep.Pointer())
+	}
+}
+
+func TestPingFactoryCreateErr(t *testing.T) {
+	s := Service{Type: "grep", URL: "test"}
+	p := PingFactory{}
+	_, err := p.Create(s)
+	if err != ErrInvalidCreate {
+		t.Fatalf("failed create with error: %v", err)
 	}
 }
 
@@ -69,6 +95,31 @@ func TestGrepRegexFail(t *testing.T) {
 	expected := ErrRegexNotFound
 	if actual != expected {
 		t.Errorf("expected %v got %v", expected, actual)
+	}
+}
+
+func TestGrepFactoryCreate(t *testing.T) {
+	s := Service{Type: "grep", URL: "test", Regex: "hello"}
+	p := GrepFactory{}
+	actual, err := p.Create(s)
+	if err != nil {
+		t.Fatalf("failed create with error: %v", err)
+	}
+
+	expected := &Grep{Service: Service{URL: "test", Regex: "hello"}}
+	ap := reflect.ValueOf(actual)
+	ep := reflect.ValueOf(expected)
+	if ap.Pointer() == ep.Pointer() {
+		t.Fail()
+	}
+}
+
+func TestGrepFactoryCreateErr(t *testing.T) {
+	s := Service{Type: "ping", URL: "test", Regex: "hello"}
+	p := GrepFactory{}
+	_, err := p.Create(s)
+	if err != ErrInvalidCreate {
+		t.Fail()
 	}
 }
 

@@ -27,17 +27,22 @@
 	</a>
 </p>
 
-{{.Status}}
-
-<ul class="list-group">
-	<li class="list-group-item list-group-item-success">Operational</li>
-	{{range .Up}}
-	<li class="list-group-item">
-		<span class="badge"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span></span>
-		{{.}}
-	</li>
-	{{end}}
-</ul>
+{{ if .Status | eq "danger" }}
+<div class="alert alert-danger" role="alert">
+	<span class="glyphicon glyphicon-fire" aria-hidden="true"></span>
+	Major Outage
+</div>
+{{ else if .Status | eq "warning" }}
+<div class="alert alert-warning" role="alert">
+	<span class="glyphicon glyphicon-alert" aria-hidden="true"></span>
+	Outage
+</div>
+{{ else }}
+<div class="alert alert-success" role="alert">
+	<span class="glyphicon glyphicon-thumbs-up" aria-hidden="true"></span>
+	All Systems Operational
+</div>
+{{ end }}
 
 <ul class="list-group">
 	<li class="list-group-item list-group-item-danger">Outage</li>
@@ -46,6 +51,16 @@
 	<span class="badge"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
 	{{$time}} min</span>
 		{{$url}}
+	</li>
+	{{end}}
+</ul>
+
+<ul class="list-group">
+	<li class="list-group-item list-group-item-success">Operational</li>
+	{{range .Up}}
+	<li class="list-group-item">
+		<span class="badge"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span></span>
+		{{.}}
 	</li>
 	{{end}}
 </ul>

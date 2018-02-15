@@ -55,7 +55,7 @@ TODO: Write more usage instructions
 * [x] ping tests
 * [x] grep tests
 * [ ] iterate over and test each service from config
-* [ ] pass results to template
+* [X] pass results to template
 * [ ] sqlite persistent data
 * [ ] reactive status page
 

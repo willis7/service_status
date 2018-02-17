@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -91,14 +90,9 @@ func main() {
 		up = append(up, service.GetService().URL)
 	}
 
-	statushtml := template.HTML(`<div class="alert alert-success" role="alert">
-	<span class="glyphicon glyphicon-thumbs-up" aria-hidden="true"></span>
-	All Systems Operational
-</div>`)
-
 	p := status.Page{
 		Title:  "My Status",
-		Status: statushtml,
+		Status: "danger",
 		Up:     up,
 		Down:   down,
 		Time:   time.Now().Format("2006-01-02 15:04:05"),

@@ -16,14 +16,14 @@ func init() {
 	status.LoadTemplate()
 }
 
-// Config holds a list of services to be
-// checked
+// Config holds a list of services to be checked
 type Config struct {
 	Services []status.Service `json:"services"`
 }
 
-// CreateFactories will return a slice of Pinger concrete services
-func (c *Config) CreateFactories() ([]status.Pinger, error) {
+// CreateServices will return a slice of concrete services which
+// conform to the Pinger interface
+func (c *Config) CreateServices() ([]status.Pinger, error) {
 	var checks []status.Pinger
 
 	for _, service := range c.Services {
@@ -73,7 +73,7 @@ func main() {
 	// read the config file to determine which services need to be checked
 	config, _ := LoadConfiguration(configPath)
 
-	services, err := config.CreateFactories()
+	services, err := config.CreateServices()
 	if err != nil {
 		log.Fatalf("create factories: %v", err)
 	}

@@ -39,6 +39,14 @@ Below is an example config which coveres the implemented checks.
 
 TODO: Write more usage instructions
 
+Client:
+
+$ cd client && webpack-dev-server --hot --inline
+
+build:
+
+$ webpack
+
 ## Contributing
 
 1. Fork it!
@@ -54,7 +62,7 @@ TODO: Write more usage instructions
 * [x] serve html
 * [x] ping tests
 * [x] grep tests
-* [ ] iterate over and test each service from config
+* [X] iterate over and test each service from config
 * [X] pass results to template
 * [ ] sqlite persistent data
 * [ ] reactive status page

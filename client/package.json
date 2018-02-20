@@ -1,0 +1,21 @@
+{
+  "name": "servicestatus",
+  "version": "1.0.0",
+  "description": "Service Status Page with React",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Sion Williams <themrsion@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.2",
+    "react": "^16.2.0",
+    "webpack": "^3.11.0"
+  },
+  "dependencies": {
+    "babel-preset-react": "^6.24.1",
+    "react-dom": "^16.2.0"
+  }
+}

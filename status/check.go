@@ -2,7 +2,7 @@ package status
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"regexp"
 )
@@ -100,7 +100,7 @@ func (p *Grep) Status() error {
 		return ErrServiceUnavailable
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}

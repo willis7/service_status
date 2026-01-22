@@ -14,6 +14,7 @@ func TestStatusHTML(t *testing.T) {
 		{name: "danger status", input: "danger", expected: "danger"},
 		{name: "degraded status", input: "degraded", expected: "degraded"},
 		{name: "success status", input: "success", expected: "success"},
+		{name: "maintenance status", input: "maintenance", expected: "maintenance"},
 		{name: "empty status defaults to success", input: "", expected: "success"},
 		{name: "unknown status defaults to success", input: "unknown", expected: "success"},
 		{name: "warning defaults to success", input: "warning", expected: "success"},

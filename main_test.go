@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/willis7/service_status/status"
@@ -217,5 +219,135 @@ func TestConfigStoragePathEmpty(t *testing.T) {
 
 	if config.StoragePath != "" {
 		t.Errorf("expected storage_path to be empty, got %s", config.StoragePath)
+	}
+}
+
+func TestGetMaintenanceMessageFromInline(t *testing.T) {
+	config := Config{
+		MaintenanceMessage: "System under maintenance for upgrade",
+	}
+
+	msg := config.GetMaintenanceMessage()
+	if msg != "System under maintenance for upgrade" {
+		t.Errorf("expected inline message, got %q", msg)
+	}
+}
+
+func TestGetMaintenanceMessageFromFile(t *testing.T) {
+	// Create a temporary maintenance file
+	tmpDir := t.TempDir()
+	maintenanceFile := filepath.Join(tmpDir, "maintenance.txt")
+	err := os.WriteFile(maintenanceFile, []byte("Scheduled maintenance in progress"), 0644)
+	if err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	config := Config{
+		MaintenanceFile: maintenanceFile,
+	}
+
+	msg := config.GetMaintenanceMessage()
+	if msg != "Scheduled maintenance in progress" {
+		t.Errorf("expected file message, got %q", msg)
+	}
+}
+
+func TestGetMaintenanceMessageFileTakesPrecedence(t *testing.T) {
+	// Create a temporary maintenance file
+	tmpDir := t.TempDir()
+	maintenanceFile := filepath.Join(tmpDir, "maintenance.txt")
+	err := os.WriteFile(maintenanceFile, []byte("File message"), 0644)
+	if err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	config := Config{
+		MaintenanceFile:    maintenanceFile,
+		MaintenanceMessage: "Inline message",
+	}
+
+	msg := config.GetMaintenanceMessage()
+	if msg != "File message" {
+		t.Errorf("expected file message to take precedence, got %q", msg)
+	}
+}
+
+func TestGetMaintenanceMessageEmptyFileUsesInline(t *testing.T) {
+	// Create an empty temporary maintenance file
+	tmpDir := t.TempDir()
+	maintenanceFile := filepath.Join(tmpDir, "maintenance.txt")
+	err := os.WriteFile(maintenanceFile, []byte(""), 0644)
+	if err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	config := Config{
+		MaintenanceFile:    maintenanceFile,
+		MaintenanceMessage: "Inline message",
+	}
+
+	msg := config.GetMaintenanceMessage()
+	if msg != "Inline message" {
+		t.Errorf("expected inline message when file is empty, got %q", msg)
+	}
+}
+
+func TestGetMaintenanceMessageNonexistentFileUsesInline(t *testing.T) {
+	config := Config{
+		MaintenanceFile:    "/nonexistent/path/maintenance.txt",
+		MaintenanceMessage: "Inline message",
+	}
+
+	msg := config.GetMaintenanceMessage()
+	if msg != "Inline message" {
+		t.Errorf("expected inline message when file doesn't exist, got %q", msg)
+	}
+}
+
+func TestGetMaintenanceMessageNoMaintenance(t *testing.T) {
+	config := Config{}
+
+	msg := config.GetMaintenanceMessage()
+	if msg != "" {
+		t.Errorf("expected empty message when no maintenance configured, got %q", msg)
+	}
+}
+
+func TestGetMaintenanceMessageTrimsWhitespace(t *testing.T) {
+	// Create a temporary maintenance file with whitespace
+	tmpDir := t.TempDir()
+	maintenanceFile := filepath.Join(tmpDir, "maintenance.txt")
+	err := os.WriteFile(maintenanceFile, []byte("  Message with whitespace  \n"), 0644)
+	if err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	config := Config{
+		MaintenanceFile: maintenanceFile,
+	}
+
+	msg := config.GetMaintenanceMessage()
+	if msg != "Message with whitespace" {
+		t.Errorf("expected trimmed message, got %q", msg)
+	}
+}
+
+func TestGetMaintenanceMessageWhitespaceOnlyFileUsesInline(t *testing.T) {
+	// Create a temporary maintenance file with only whitespace
+	tmpDir := t.TempDir()
+	maintenanceFile := filepath.Join(tmpDir, "maintenance.txt")
+	err := os.WriteFile(maintenanceFile, []byte("   \n\t  \n"), 0644)
+	if err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	config := Config{
+		MaintenanceFile:    maintenanceFile,
+		MaintenanceMessage: "Inline fallback",
+	}
+
+	msg := config.GetMaintenanceMessage()
+	if msg != "Inline fallback" {
+		t.Errorf("expected inline message when file has only whitespace, got %q", msg)
 	}
 }

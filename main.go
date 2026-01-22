@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/willis7/service_status/status"
@@ -27,6 +28,12 @@ type Config struct {
 	// StoragePath is the path to the SQLite database for persistent storage.
 	// If empty, storage is disabled (opt-in feature).
 	StoragePath string `json:"storage_path,omitempty"`
+	// MaintenanceFile is the path to a file containing maintenance message.
+	// If the file exists and has content, the system enters maintenance mode.
+	MaintenanceFile string `json:"maintenance_file,omitempty"`
+	// MaintenanceMessage is an inline maintenance message.
+	// If set, the system enters maintenance mode. MaintenanceFile takes precedence.
+	MaintenanceMessage string `json:"maintenance_message,omitempty"`
 }
 
 // CreateFactories returns a slice of Pinger concrete services.
@@ -74,6 +81,29 @@ func (c *Config) CreateFactories() ([]status.Pinger, error) {
 	}
 
 	return checks, nil
+}
+
+// GetMaintenanceMessage returns the maintenance message if maintenance mode is active.
+// It first checks for a maintenance file, then falls back to inline message.
+// Returns empty string if maintenance mode is not active.
+func (c *Config) GetMaintenanceMessage() string {
+	// Check maintenance file first (takes precedence)
+	if c.MaintenanceFile != "" {
+		content, err := os.ReadFile(c.MaintenanceFile)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				log.Printf("warning: failed to read maintenance file %s: %v", c.MaintenanceFile, err)
+			}
+			// Fall through to inline message
+		} else {
+			msg := strings.TrimSpace(string(content))
+			if msg != "" {
+				return msg
+			}
+		}
+	}
+	// Fall back to inline message
+	return c.MaintenanceMessage
 }
 
 // LoadConfiguration takes a configuration file and returns a Config struct.
@@ -146,47 +176,62 @@ func main() {
 		log.Printf("added %s notifier", notifier.Type())
 	}
 
+	// Check for maintenance mode
+	maintenanceMsg := config.GetMaintenanceMessage()
+
 	down := make(map[string]int)
 	degraded := make(map[string]int)
 	var up []string
 
-	for _, service := range services {
-		err := service.Status()
-		svc := service.GetService()
-		displayName := svc.DisplayName()
+	// If in maintenance mode, skip status checks and mark all services as up
+	if maintenanceMsg != "" {
+		log.Printf("maintenance mode active: %s", maintenanceMsg)
+		log.Printf("skipping status checks for %d services", len(services))
+		for _, service := range services {
+			svc := service.GetService()
+			up = append(up, svc.DisplayName())
+		}
+	} else {
+		for _, service := range services {
+			err := service.Status()
+			svc := service.GetService()
+			displayName := svc.DisplayName()
 
-		// Record status to storage if enabled
-		if storage != nil {
-			var errMsg string
+			// Record status to storage if enabled
+			if storage != nil {
+				var errMsg string
+				if err != nil {
+					errMsg = err.Error()
+				}
+				isUp := status.IsOperational(err)
+				if storageErr := storage.RecordStatus(svc.URL, isUp, errMsg); storageErr != nil {
+					log.Printf("storage: failed to record status: %v", storageErr)
+				}
+				if storageErr := storage.UpdateServiceState(svc.URL, isUp); storageErr != nil {
+					log.Printf("storage: failed to update state: %v", storageErr)
+				}
+			}
+
 			if err != nil {
-				errMsg = err.Error()
+				if status.IsDegraded(err) {
+					degraded[displayName] = defaultOutageMinutes
+					notifyManager.CheckAndNotify(svc.URL, true) // Degraded is still partially available
+				} else {
+					down[displayName] = defaultOutageMinutes
+					notifyManager.CheckAndNotify(svc.URL, false)
+				}
+				continue
 			}
-			isUp := status.IsOperational(err)
-			if storageErr := storage.RecordStatus(svc.URL, isUp, errMsg); storageErr != nil {
-				log.Printf("storage: failed to record status: %v", storageErr)
-			}
-			if storageErr := storage.UpdateServiceState(svc.URL, isUp); storageErr != nil {
-				log.Printf("storage: failed to update state: %v", storageErr)
-			}
+			up = append(up, displayName)
+			notifyManager.CheckAndNotify(svc.URL, true)
 		}
-
-		if err != nil {
-			if status.IsDegraded(err) {
-				degraded[displayName] = defaultOutageMinutes
-				notifyManager.CheckAndNotify(svc.URL, true) // Degraded is still partially available
-			} else {
-				down[displayName] = defaultOutageMinutes
-				notifyManager.CheckAndNotify(svc.URL, false)
-			}
-			continue
-		}
-		up = append(up, displayName)
-		notifyManager.CheckAndNotify(svc.URL, true)
 	}
 
-	// Determine overall status
+	// Determine overall status (maintenance takes precedence over all other states)
 	var overallStatus string
 	switch {
+	case maintenanceMsg != "":
+		overallStatus = "maintenance"
 	case len(down) > 0:
 		overallStatus = "danger"
 	case len(degraded) > 0:
@@ -196,12 +241,13 @@ func main() {
 	}
 
 	p := status.Page{
-		Title:    "My Status",
-		Status:   status.StatusHTML(overallStatus),
-		Up:       up,
-		Degraded: degraded,
-		Down:     down,
-		Time:     time.Now().Format("2006-01-02 15:04:05"),
+		Title:              "My Status",
+		Status:             status.StatusHTML(overallStatus),
+		Up:                 up,
+		Degraded:           degraded,
+		Down:               down,
+		Time:               time.Now().Format("2006-01-02 15:04:05"),
+		MaintenanceMessage: maintenanceMsg,
 	}
 
 	// create and serve the page

@@ -15,13 +15,16 @@ type Page struct {
 	Degraded map[string]int
 	Down     map[string]int
 	Time     string
+	// MaintenanceMessage is displayed when the system is in maintenance mode.
+	// Empty string indicates normal operation.
+	MaintenanceMessage string
 }
 
 // StatusHTML converts a known status string to template.HTML.
 // It returns "success" for any unrecognized input.
 func StatusHTML(s string) template.HTML {
 	switch s {
-	case "danger", "degraded", "success":
+	case "danger", "degraded", "success", "maintenance":
 		return template.HTML(s)
 	default:
 		return "success"

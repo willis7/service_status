@@ -28,7 +28,20 @@
 	</a>
 </p>
 
-{{ if .Status | eq "danger" }}
+{{ if .Status | eq "maintenance" }}
+<div class="alert alert-info" role="alert">
+	<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+	<strong>Scheduled Maintenance</strong>
+</div>
+<div class="panel panel-info">
+	<div class="panel-heading">
+		<h3 class="panel-title"><span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span> Maintenance Notice</h3>
+	</div>
+	<div class="panel-body" style="white-space: pre-wrap;">
+		{{.MaintenanceMessage}}
+	</div>
+</div>
+{{ else if .Status | eq "danger" }}
 <div class="alert alert-danger" role="alert">
 	<span class="glyphicon glyphicon-fire" aria-hidden="true"></span>
 	Major Outage

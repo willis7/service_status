@@ -130,8 +130,5 @@ func (factory *GrepFactory) Create(s Service) (Pinger, error) {
 // validStatus checks the input against a list of known-good
 // http status codes and returns a bool
 func validStatus(code int) bool {
-	if code != http.StatusOK {
-		return false
-	}
-	return true
+	return code == http.StatusOK
 }

@@ -8,7 +8,7 @@ import (
 
 func TestNewStorage(t *testing.T) {
 	tmpFile := tempDBPath(t)
-	defer os.Remove(tmpFile)
+	t.Cleanup(func() { os.Remove(tmpFile) })
 
 	storage, err := NewStorage(tmpFile)
 	if err != nil {
@@ -61,9 +61,13 @@ func TestGetLastStatus(t *testing.T) {
 	}
 
 	// Insert some records
-	storage.RecordStatus(serviceURL, true, "")
+	if err := storage.RecordStatus(serviceURL, true, ""); err != nil {
+		t.Fatalf("failed to record status: %v", err)
+	}
 	time.Sleep(10 * time.Millisecond) // Ensure different timestamps
-	storage.RecordStatus(serviceURL, false, "timeout")
+	if err := storage.RecordStatus(serviceURL, false, "timeout"); err != nil {
+		t.Fatalf("failed to record status: %v", err)
+	}
 
 	// Get last status
 	record, err = storage.GetLastStatus(serviceURL)
@@ -89,7 +93,9 @@ func TestGetStatusHistory(t *testing.T) {
 
 	// Insert multiple records
 	for i := 0; i < 5; i++ {
-		storage.RecordStatus(serviceURL, i%2 == 0, "")
+		if err := storage.RecordStatus(serviceURL, i%2 == 0, ""); err != nil {
+			t.Fatalf("failed to record status: %v", err)
+		}
 		time.Sleep(5 * time.Millisecond)
 	}
 
@@ -145,19 +151,23 @@ func TestGetLastAlert(t *testing.T) {
 	}
 
 	// Insert alerts
-	storage.RecordAlert(Alert{
+	if err := storage.RecordAlert(Alert{
 		ServiceURL: serviceURL,
 		AlertType:  AlertTypeDown,
 		Message:    "down",
 		Timestamp:  time.Now(),
-	})
+	}); err != nil {
+		t.Fatalf("failed to record alert: %v", err)
+	}
 	time.Sleep(10 * time.Millisecond)
-	storage.RecordAlert(Alert{
+	if err := storage.RecordAlert(Alert{
 		ServiceURL: serviceURL,
 		AlertType:  AlertTypeRecovery,
 		Message:    "recovered",
 		Timestamp:  time.Now(),
-	})
+	}); err != nil {
+		t.Fatalf("failed to record alert: %v", err)
+	}
 
 	// Get last alert
 	record, err = storage.GetLastAlert(serviceURL)
@@ -179,12 +189,14 @@ func TestGetRecentAlerts(t *testing.T) {
 	// Insert alerts for different services
 	services := []string{"http://a.com", "http://b.com", "http://c.com"}
 	for _, svc := range services {
-		storage.RecordAlert(Alert{
+		if err := storage.RecordAlert(Alert{
 			ServiceURL: svc,
 			AlertType:  AlertTypeDown,
 			Message:    "down",
 			Timestamp:  time.Now(),
-		})
+		}); err != nil {
+			t.Fatalf("failed to record alert: %v", err)
+		}
 		time.Sleep(5 * time.Millisecond)
 	}
 
@@ -293,9 +305,15 @@ func TestGetAllServiceStates(t *testing.T) {
 	defer storage.Close()
 
 	// Insert multiple service states
-	storage.UpdateServiceState("http://a.com", true)
-	storage.UpdateServiceState("http://b.com", false)
-	storage.UpdateServiceState("http://c.com", true)
+	if err := storage.UpdateServiceState("http://a.com", true); err != nil {
+		t.Fatalf("failed to update service state: %v", err)
+	}
+	if err := storage.UpdateServiceState("http://b.com", false); err != nil {
+		t.Fatalf("failed to update service state: %v", err)
+	}
+	if err := storage.UpdateServiceState("http://c.com", true); err != nil {
+		t.Fatalf("failed to update service state: %v", err)
+	}
 
 	states, err := storage.GetAllServiceStates()
 	if err != nil {
@@ -324,11 +342,16 @@ func TestPruneOldRecords(t *testing.T) {
 
 	// Insert records
 	for i := 0; i < 5; i++ {
-		storage.RecordStatus(serviceURL, true, "")
+		if err := storage.RecordStatus(serviceURL, true, ""); err != nil {
+			t.Fatalf("failed to record status: %v", err)
+		}
 	}
 
 	// Verify records exist
-	records, _ := storage.GetStatusHistory(serviceURL, 10)
+	records, err := storage.GetStatusHistory(serviceURL, 10)
+	if err != nil {
+		t.Fatalf("failed to get status history: %v", err)
+	}
 	if len(records) != 5 {
 		t.Fatalf("expected 5 records, got %d", len(records))
 	}
@@ -343,7 +366,10 @@ func TestPruneOldRecords(t *testing.T) {
 	}
 
 	// Verify records are gone
-	records, _ = storage.GetStatusHistory(serviceURL, 10)
+	records, err = storage.GetStatusHistory(serviceURL, 10)
+	if err != nil {
+		t.Fatalf("failed to get status history: %v", err)
+	}
 	if len(records) != 0 {
 		t.Errorf("expected 0 records after prune, got %d", len(records))
 	}

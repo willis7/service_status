@@ -2,18 +2,20 @@ package status
 
 import (
 	"database/sql"
-	"errors"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
 
-// Storage errors.
-var (
-	ErrStorageInit   = errors.New("storage: failed to initialize database")
-	ErrStorageQuery  = errors.New("storage: query failed")
-	ErrStorageInsert = errors.New("storage: insert failed")
-)
+// sqliteTimeFormat is the time format used by SQLite for datetime storage.
+const sqliteTimeFormat = "2006-01-02 15:04:05"
+
+// parseDBTime parses a time string from the database.
+// Returns zero time if parsing fails.
+func parseDBTime(s string) time.Time {
+	t, _ := time.Parse(sqliteTimeFormat, s)
+	return t
+}
 
 // StatusRecord represents a single status check result stored in the database.
 type StatusRecord struct {
@@ -139,7 +141,7 @@ func (s *Storage) GetLastStatus(serviceURL string) (*StatusRecord, error) {
 	}
 
 	record.IsUp = isUp == 1
-	record.CheckedAt, _ = time.Parse("2006-01-02 15:04:05", checkedAt)
+	record.CheckedAt = parseDBTime(checkedAt)
 	if message.Valid {
 		record.Message = message.String
 	}
@@ -174,7 +176,7 @@ func (s *Storage) GetStatusHistory(serviceURL string, limit int) ([]StatusRecord
 		}
 
 		record.IsUp = isUp == 1
-		record.CheckedAt, _ = time.Parse("2006-01-02 15:04:05", checkedAt)
+		record.CheckedAt = parseDBTime(checkedAt)
 		if message.Valid {
 			record.Message = message.String
 		}
@@ -207,7 +209,7 @@ func (s *Storage) GetRecentAlerts(limit int) ([]AlertRecord, error) {
 			return nil, err
 		}
 
-		record.SentAt, _ = time.Parse("2006-01-02 15:04:05", sentAt)
+		record.SentAt = parseDBTime(sentAt)
 		records = append(records, record)
 	}
 
@@ -236,7 +238,7 @@ func (s *Storage) GetLastAlert(serviceURL string) (*AlertRecord, error) {
 		return nil, err
 	}
 
-	record.SentAt, _ = time.Parse("2006-01-02 15:04:05", sentAt)
+	record.SentAt = parseDBTime(sentAt)
 	return &record, nil
 }
 
@@ -284,9 +286,9 @@ func (s *Storage) GetServiceState(serviceURL string) (isUp bool, lastChecked tim
 	}
 
 	isUp = isUpInt == 1
-	lastChecked, _ = time.Parse("2006-01-02 15:04:05", lastCheckedStr)
+	lastChecked = parseDBTime(lastCheckedStr)
 	if lastAlertStr.Valid {
-		parsed, _ := time.Parse("2006-01-02 15:04:05", lastAlertStr.String)
+		parsed := parseDBTime(lastAlertStr.String)
 		lastAlert = &parsed
 	}
 

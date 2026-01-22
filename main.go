@@ -60,6 +60,13 @@ func (c *Config) CreateFactories() ([]status.Pinger, error) {
 				return nil, fmt.Errorf("failed to create icmp object: %w", err)
 			}
 			checks = append(checks, ic)
+		case "script":
+			sf := status.ScriptFactory{}
+			sc, err := sf.Create(service)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create script object: %w", err)
+			}
+			checks = append(checks, sc)
 		}
 	}
 

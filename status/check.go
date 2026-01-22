@@ -1,6 +1,7 @@
 package status
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net"
@@ -25,6 +26,7 @@ var (
 	ErrInvalidCreate      = errors.New("commands: invalid type for create")
 	ErrHostRequired       = errors.New("commands: host is required for icmp check")
 	ErrInvalidHostname    = errors.New("commands: invalid hostname for icmp check")
+	ErrCommandRequired    = errors.New("commands: command is required for script check")
 )
 
 // IsDegraded returns true if the error represents a degraded service state.
@@ -40,19 +42,30 @@ const tcpDialTimeout = 10 * time.Second
 
 // Service represents a single endpoint to be tested.
 type Service struct {
-	Type  string `json:"type"`
-	URL   string `json:"url"`
-	Port  string `json:"port,omitempty"`
-	Regex string `json:"regex,omitempty"`
-	Name  string `json:"name,omitempty"`
+	Type    string `json:"type"`
+	URL     string `json:"url"`
+	Port    string `json:"port,omitempty"`
+	Regex   string `json:"regex,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Command string `json:"command,omitempty"`
 }
 
 // DisplayName returns the Name if set, otherwise falls back to the URL.
+// For script services without a URL, it returns the command executable name.
 func (s *Service) DisplayName() string {
 	if s.Name != "" {
 		return s.Name
 	}
-	return s.URL
+	if s.URL != "" {
+		return s.URL
+	}
+	if s.Command != "" {
+		args := strings.Fields(s.Command)
+		if len(args) > 0 {
+			return args[0]
+		}
+	}
+	return "unknown"
 }
 
 // Pinger is an interface which describes how
@@ -276,4 +289,105 @@ func isValidHostname(host string) bool {
 		}
 	}
 	return true
+}
+
+// scriptExitCodeDegraded is the exit code that indicates a degraded service status.
+const scriptExitCodeDegraded = 80
+
+// scriptTimeout is the timeout duration for script execution.
+const scriptTimeout = 30 * time.Second
+
+// Script executes an external command or script and interprets the exit code.
+// Exit code 0 = OK, 80 = Degraded, any other = Failure.
+//
+// Security note: Commands are read from the config file, which should be
+// protected with appropriate file permissions. No additional command
+// validation is performed beyond basic parsing.
+type Script struct {
+	Service
+}
+
+// GetService returns the Service pointer.
+func (s *Script) GetService() *Service {
+	return &s.Service
+}
+
+// Status executes the configured command and interprets the exit code.
+// Returns nil for exit code 0, ErrServiceDegraded for exit code 80,
+// and ErrServiceUnavailable for any other exit code.
+func (s *Script) Status() error {
+	args := parseCommand(s.Command)
+	if len(args) == 0 {
+		return ErrCommandRequired
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+
+	if err := cmd.Run(); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return ErrServiceUnavailable
+		}
+		// Check if it's an exit error to get the exit code
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			if exitErr.ExitCode() == scriptExitCodeDegraded {
+				return ErrServiceDegraded
+			}
+		}
+		return ErrServiceUnavailable
+	}
+	return nil
+}
+
+// parseCommand splits a command string into executable and arguments.
+// It handles quoted strings to allow spaces in arguments.
+func parseCommand(cmd string) []string {
+	var args []string
+	var current strings.Builder
+	inQuote := false
+	quoteChar := rune(0)
+
+	for _, c := range cmd {
+		switch {
+		case c == '"' || c == '\'':
+			if !inQuote {
+				inQuote = true
+				quoteChar = c
+			} else if c == quoteChar {
+				inQuote = false
+				quoteChar = 0
+			} else {
+				current.WriteRune(c)
+			}
+		case c == ' ' && !inQuote:
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+		default:
+			current.WriteRune(c)
+		}
+	}
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+	return args
+}
+
+// ScriptFactory implements the PingerFactory interface.
+type ScriptFactory struct{}
+
+// Create returns a pointer to a Pinger.
+func (f *ScriptFactory) Create(s Service) (Pinger, error) {
+	if s.Type != "script" {
+		return nil, ErrInvalidCreate
+	}
+	if s.Command == "" {
+		return nil, ErrCommandRequired
+	}
+	return &Script{
+		Service: Service{Command: s.Command, Name: s.Name},
+	}, nil
 }

@@ -94,6 +94,24 @@ func TestCreateFactories(t *testing.T) {
 			expected: 4,
 			wantErr:  false,
 		},
+		{
+			name: "single script service",
+			services: []status.Service{
+				{Type: "script", Command: "/path/to/script.sh"},
+			},
+			expected: 1,
+			wantErr:  false,
+		},
+		{
+			name: "mixed services with script",
+			services: []status.Service{
+				{Type: "ping", URL: "http://example1.com"},
+				{Type: "script", Command: "echo hello"},
+				{Type: "grep", URL: "http://example2.com", Regex: "pattern"},
+			},
+			expected: 3,
+			wantErr:  false,
+		},
 	}
 
 	for _, tc := range tt {

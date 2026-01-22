@@ -262,6 +262,16 @@ func TestServiceDisplayName(t *testing.T) {
 			service:  Service{URL: "http://example.com"},
 			expected: "http://example.com",
 		},
+		{
+			name:     "falls back to command executable for scripts",
+			service:  Service{Command: "/path/to/script.sh arg1 arg2"},
+			expected: "/path/to/script.sh",
+		},
+		{
+			name:     "returns unknown when no name, url, or command",
+			service:  Service{},
+			expected: "unknown",
+		},
 	}
 
 	for _, tc := range tt {
@@ -479,6 +489,201 @@ func TestIsDegraded(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := IsDegraded(tc.err); got != tc.expected {
 				t.Errorf("IsDegraded(%v) = %v, want %v", tc.err, got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestScriptSuccess(t *testing.T) {
+	// 'true' is a shell command that always exits with code 0
+	sc := Script{Service: Service{Command: "true"}}
+	if err := sc.Status(); err != nil {
+		t.Errorf("expected no error for exit code 0, got %v", err)
+	}
+}
+
+func TestScriptFail(t *testing.T) {
+	// 'false' is a shell command that always exits with code 1
+	sc := Script{Service: Service{Command: "false"}}
+	actual := sc.Status()
+	if actual != ErrServiceUnavailable {
+		t.Errorf("expected ErrServiceUnavailable, got %v", actual)
+	}
+}
+
+func TestScriptDegraded(t *testing.T) {
+	// Use shell to exit with code 80
+	sc := Script{Service: Service{Command: "sh -c 'exit 80'"}}
+	actual := sc.Status()
+	if actual != ErrServiceDegraded {
+		t.Errorf("expected ErrServiceDegraded, got %v", actual)
+	}
+}
+
+func TestScriptWithArguments(t *testing.T) {
+	// Test command with arguments
+	sc := Script{Service: Service{Command: "echo hello world"}}
+	if err := sc.Status(); err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+}
+
+func TestScriptWithQuotedArguments(t *testing.T) {
+	// Test command with quoted arguments containing spaces
+	sc := Script{Service: Service{Command: `echo "hello world"`}}
+	if err := sc.Status(); err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+}
+
+func TestScriptEmptyCommand(t *testing.T) {
+	sc := Script{Service: Service{Command: ""}}
+	actual := sc.Status()
+	if actual != ErrCommandRequired {
+		t.Errorf("expected ErrCommandRequired, got %v", actual)
+	}
+}
+
+func TestScriptNonExistentCommand(t *testing.T) {
+	sc := Script{Service: Service{Command: "/nonexistent/command/path"}}
+	actual := sc.Status()
+	if actual != ErrServiceUnavailable {
+		t.Errorf("expected ErrServiceUnavailable, got %v", actual)
+	}
+}
+
+func TestScriptFactoryCreate(t *testing.T) {
+	s := Service{Type: "script", Command: "/path/to/script.sh"}
+	f := ScriptFactory{}
+	actual, err := f.Create(s)
+	if err != nil {
+		t.Fatalf("failed create with error: %v", err)
+	}
+
+	expected := &Script{Service: Service{Command: "/path/to/script.sh"}}
+	ap := reflect.ValueOf(actual)
+	ep := reflect.ValueOf(expected)
+	if ap.Pointer() == ep.Pointer() {
+		t.Errorf("expected different pointers, got same: %v", ap.Pointer())
+	}
+}
+
+func TestScriptFactoryCreateErr(t *testing.T) {
+	s := Service{Type: "ping", Command: "/path/to/script.sh"}
+	f := ScriptFactory{}
+	_, err := f.Create(s)
+	if err != ErrInvalidCreate {
+		t.Errorf("expected ErrInvalidCreate, got %v", err)
+	}
+}
+
+func TestScriptFactoryCreateEmptyCommand(t *testing.T) {
+	s := Service{Type: "script", Command: ""}
+	f := ScriptFactory{}
+	_, err := f.Create(s)
+	if err != ErrCommandRequired {
+		t.Errorf("expected ErrCommandRequired, got %v", err)
+	}
+}
+
+func TestScriptGetService(t *testing.T) {
+	s := Service{Command: "/path/to/script.sh", Name: "My Script"}
+	sc := Script{Service: s}
+	got := sc.GetService()
+	if got.Command != s.Command {
+		t.Errorf("expected Command %v, got %v", s.Command, got.Command)
+	}
+	if got.Name != s.Name {
+		t.Errorf("expected Name %v, got %v", s.Name, got.Name)
+	}
+}
+
+func TestScriptFactoryPreservesName(t *testing.T) {
+	s := Service{Type: "script", Command: "/path/to/script.sh", Name: "My Script Check"}
+	f := ScriptFactory{}
+	sc, err := f.Create(s)
+	if err != nil {
+		t.Fatalf("failed to create script: %v", err)
+	}
+	if got := sc.GetService().Name; got != "My Script Check" {
+		t.Errorf("expected Name 'My Script Check', got %v", got)
+	}
+}
+
+func TestParseCommand(t *testing.T) {
+	tt := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{
+			name:     "simple command",
+			input:    "echo",
+			expected: []string{"echo"},
+		},
+		{
+			name:     "command with arguments",
+			input:    "echo hello world",
+			expected: []string{"echo", "hello", "world"},
+		},
+		{
+			name:     "double quoted argument",
+			input:    `echo "hello world"`,
+			expected: []string{"echo", "hello world"},
+		},
+		{
+			name:     "single quoted argument",
+			input:    `echo 'hello world'`,
+			expected: []string{"echo", "hello world"},
+		},
+		{
+			name:     "mixed quotes",
+			input:    `echo "hello" 'world'`,
+			expected: []string{"echo", "hello", "world"},
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: nil,
+		},
+		{
+			name:     "multiple spaces",
+			input:    "echo    hello    world",
+			expected: []string{"echo", "hello", "world"},
+		},
+		{
+			name:     "path with arguments",
+			input:    "/path/to/script.sh arg1 arg2",
+			expected: []string{"/path/to/script.sh", "arg1", "arg2"},
+		},
+		{
+			name:     "quoted path with space",
+			input:    `"/path/to/my script.sh" arg1`,
+			expected: []string{"/path/to/my script.sh", "arg1"},
+		},
+		{
+			name:     "unclosed double quote",
+			input:    `echo "hello world`,
+			expected: []string{"echo", "hello world"},
+		},
+		{
+			name:     "unclosed single quote",
+			input:    `echo 'hello world`,
+			expected: []string{"echo", "hello world"},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			got := parseCommand(tc.input)
+			if len(got) != len(tc.expected) {
+				t.Errorf("parseCommand(%q) returned %d args, want %d", tc.input, len(got), len(tc.expected))
+				return
+			}
+			for i := range got {
+				if got[i] != tc.expected[i] {
+					t.Errorf("parseCommand(%q)[%d] = %q, want %q", tc.input, i, got[i], tc.expected[i])
+				}
 			}
 		})
 	}

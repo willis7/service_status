@@ -1,6 +1,6 @@
 # WIP: Service Status
 
-[![Build Status](https://travis-ci.org/willis7/service_status.svg?branch=master)](https://travis-ci.org/willis7/service_status)
+[![CI](https://github.com/willis7/service_status/actions/workflows/ci.yml/badge.svg)](https://github.com/willis7/service_status/actions/workflows/ci.yml)
 
 Simple Golang project to generate a static status page.
 

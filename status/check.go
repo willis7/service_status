@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -17,10 +18,11 @@ var (
 	ErrRegexNotFound      = errors.New("commands: regex not found")
 	ErrInvalidCreate      = errors.New("commands: invalid type for create")
 	ErrHostRequired       = errors.New("commands: host is required for icmp check")
+	ErrInvalidHostname    = errors.New("commands: invalid hostname for icmp check")
 )
 
-// icmpPingTimeout is the timeout duration for ICMP ping attempts.
-const icmpPingTimeout = "5"
+// icmpPingTimeoutSeconds is the timeout in seconds for ICMP ping attempts (string for CLI argument).
+const icmpPingTimeoutSeconds = "5"
 
 // tcpDialTimeout is the timeout duration for TCP connection attempts.
 const tcpDialTimeout = 10 * time.Second
@@ -207,13 +209,14 @@ func (i *ICMP) Status() error {
 	var cmd *exec.Cmd
 
 	// Construct platform-specific ping command
-	// macOS/BSD uses -c for count and -t for timeout (TTL in Linux)
+	// macOS/BSD uses -c for count and -t for timeout
 	// Linux uses -c for count and -W for timeout
+	// Note: Windows is not currently supported (uses -n and -w with different semantics)
 	if runtime.GOOS == "darwin" || runtime.GOOS == "freebsd" {
-		cmd = exec.Command("ping", "-c", "1", "-t", icmpPingTimeout, i.URL)
+		cmd = exec.Command("ping", "-c", "1", "-t", icmpPingTimeoutSeconds, i.URL)
 	} else {
 		// Linux and other Unix-like systems
-		cmd = exec.Command("ping", "-c", "1", "-W", icmpPingTimeout, i.URL)
+		cmd = exec.Command("ping", "-c", "1", "-W", icmpPingTimeoutSeconds, i.URL)
 	}
 
 	if err := cmd.Run(); err != nil {
@@ -233,7 +236,33 @@ func (f *ICMPFactory) Create(s Service) (Pinger, error) {
 	if s.URL == "" {
 		return nil, ErrHostRequired
 	}
+	if !isValidHostname(s.URL) {
+		return nil, ErrInvalidHostname
+	}
 	return &ICMP{
 		Service: Service{URL: s.URL, Name: s.Name},
 	}, nil
+}
+
+// isValidHostname checks if a string is a valid hostname or IP address
+func isValidHostname(host string) bool {
+	// Check if it's a valid IP address
+	if net.ParseIP(host) != nil {
+		return true
+	}
+	// Check hostname format: alphanumeric, dots, hyphens, must not start/end with hyphen
+	if len(host) == 0 || len(host) > 253 {
+		return false
+	}
+	for _, part := range strings.Split(host, ".") {
+		if len(part) == 0 || len(part) > 63 {
+			return false
+		}
+		for i, c := range part {
+			if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || (c == '-' && i > 0 && i < len(part)-1)) {
+				return false
+			}
+		}
+	}
+	return true
 }

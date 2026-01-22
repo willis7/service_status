@@ -310,6 +310,9 @@ func TestTCPFactoryPreservesName(t *testing.T) {
 }
 
 func TestICMPSuccess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping ICMP test in short mode")
+	}
 	// Ping localhost which should always be reachable
 	ic := ICMP{Service: Service{URL: "127.0.0.1"}}
 	if err := ic.Status(); err != nil {
@@ -318,6 +321,9 @@ func TestICMPSuccess(t *testing.T) {
 }
 
 func TestICMPFail(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping ICMP test in short mode")
+	}
 	// Use an invalid/unreachable IP address
 	// 192.0.2.1 is a TEST-NET address that should be unreachable
 	ic := ICMP{Service: Service{URL: "192.0.2.1"}}
@@ -327,6 +333,9 @@ func TestICMPFail(t *testing.T) {
 }
 
 func TestICMPInvalidHost(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping ICMP test in short mode")
+	}
 	ic := ICMP{Service: Service{URL: "invalid.host.that.does.not.exist.local"}}
 	actual := ic.Status()
 	expected := ErrServiceUnavailable
@@ -390,5 +399,65 @@ func TestICMPFactoryPreservesName(t *testing.T) {
 	}
 	if got := ic.GetService().Name; got != "Google DNS" {
 		t.Errorf("expected Name 'Google DNS', got %v", got)
+	}
+}
+
+func TestICMPFactoryRejectsInvalidHostname(t *testing.T) {
+	tt := []struct {
+		name string
+		url  string
+	}{
+		{name: "semicolon injection", url: "example.com; rm -rf /"},
+		{name: "pipe injection", url: "example.com | cat /etc/passwd"},
+		{name: "backtick injection", url: "`whoami`.example.com"},
+		{name: "dollar injection", url: "$(whoami).example.com"},
+		{name: "ampersand injection", url: "example.com && ls"},
+		{name: "newline injection", url: "example.com\nls"},
+		{name: "space in hostname", url: "example .com"},
+		{name: "starts with hyphen", url: "-example.com"},
+		{name: "label ends with hyphen", url: "example-.com"},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			s := Service{Type: "icmp", URL: tc.url}
+			f := ICMPFactory{}
+			_, err := f.Create(s)
+			if err != ErrInvalidHostname {
+				t.Errorf("expected ErrInvalidHostname for URL %q, got %v", tc.url, err)
+			}
+		})
+	}
+}
+
+func TestIsValidHostname(t *testing.T) {
+	tt := []struct {
+		name     string
+		host     string
+		expected bool
+	}{
+		{name: "valid IPv4", host: "192.168.1.1", expected: true},
+		{name: "valid IPv6", host: "::1", expected: true},
+		{name: "valid hostname", host: "example.com", expected: true},
+		{name: "valid subdomain", host: "sub.example.com", expected: true},
+		{name: "valid with hyphen", host: "my-host.example.com", expected: true},
+		{name: "valid numeric label", host: "123.example.com", expected: true},
+		{name: "localhost", host: "localhost", expected: true},
+		{name: "empty string", host: "", expected: false},
+		{name: "starts with hyphen", host: "-example.com", expected: false},
+		{name: "ends with hyphen", host: "example-.com", expected: false},
+		{name: "contains space", host: "example .com", expected: false},
+		{name: "contains semicolon", host: "example;.com", expected: false},
+		{name: "contains pipe", host: "example|.com", expected: false},
+		{name: "contains backtick", host: "`whoami`", expected: false},
+		{name: "empty label", host: "example..com", expected: false},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isValidHostname(tc.host); got != tc.expected {
+				t.Errorf("isValidHostname(%q) = %v, want %v", tc.host, got, tc.expected)
+			}
+		})
 	}
 }

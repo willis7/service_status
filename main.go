@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -32,14 +31,14 @@ func (c *Config) CreateFactories() ([]status.Pinger, error) {
 			pf := status.PingFactory{}
 			p, err := pf.Create(service)
 			if err != nil {
-				return nil, errors.New("failed to create ping object")
+				return nil, fmt.Errorf("failed to create ping object: %w", err)
 			}
 			checks = append(checks, p)
 		case "grep":
 			gf := status.GrepFactory{}
 			g, err := gf.Create(service)
 			if err != nil {
-				return nil, errors.New("failed to create grep object")
+				return nil, fmt.Errorf("failed to create grep object: %w", err)
 			}
 			checks = append(checks, g)
 		}

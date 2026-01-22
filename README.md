@@ -37,8 +37,6 @@ Below is an example config which coveres the implemented checks.
 }
 ```
 
-TODO: Write more usage instructions
-
 ## Contributing
 
 1. Fork it!
@@ -46,18 +44,6 @@ TODO: Write more usage instructions
 3. Commit your changes: `git commit -am 'Add some feature'`
 4. Push to the branch: `git push origin my-new-feature`
 5. Submit a pull request :D
-
-## TODO
-
-* [x] load `config.json`
-* [x] use template to build html
-* [x] serve html
-* [x] ping tests
-* [x] grep tests
-* [ ] iterate over and test each service from config
-* [X] pass results to template
-* [ ] sqlite persistent data
-* [ ] reactive status page
 
 ## Credits
 

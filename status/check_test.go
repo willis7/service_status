@@ -461,3 +461,25 @@ func TestIsValidHostname(t *testing.T) {
 		})
 	}
 }
+
+func TestIsDegraded(t *testing.T) {
+	tt := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{name: "degraded error", err: ErrServiceDegraded, expected: true},
+		{name: "unavailable error", err: ErrServiceUnavailable, expected: false},
+		{name: "nil error", err: nil, expected: false},
+		{name: "regex not found error", err: ErrRegexNotFound, expected: false},
+		{name: "other error", err: ErrInvalidCreate, expected: false},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := IsDegraded(tc.err); got != tc.expected {
+				t.Errorf("IsDegraded(%v) = %v, want %v", tc.err, got, tc.expected)
+			}
+		})
+	}
+}

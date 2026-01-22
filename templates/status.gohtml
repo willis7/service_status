@@ -33,10 +33,10 @@
 	<span class="glyphicon glyphicon-fire" aria-hidden="true"></span>
 	Major Outage
 </div>
-{{ else if .Status | eq "warning" }}
+{{ else if .Status | eq "degraded" }}
 <div class="alert alert-warning" role="alert">
-	<span class="glyphicon glyphicon-alert" aria-hidden="true"></span>
-	Outage
+	<span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+	Degraded Performance
 </div>
 {{ else }}
 <div class="alert alert-success" role="alert">
@@ -45,6 +45,7 @@
 </div>
 {{ end }}
 
+{{ if .Down }}
 <ul class="list-group">
 	<li class="list-group-item list-group-item-danger">Outage</li>
 	{{range $url, $time := .Down}}
@@ -55,7 +56,22 @@
 	</li>
 	{{end}}
 </ul>
+{{ end }}
 
+{{ if .Degraded }}
+<ul class="list-group">
+	<li class="list-group-item list-group-item-warning">Degraded</li>
+	{{range $url, $time := .Degraded}}
+	<li class="list-group-item">
+	<span class="badge"><span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+	{{$time}} min</span>
+		{{$url}}
+	</li>
+	{{end}}
+</ul>
+{{ end }}
+
+{{ if .Up }}
 <ul class="list-group">
 	<li class="list-group-item list-group-item-success">Operational</li>
 	{{range .Up}}
@@ -65,6 +81,7 @@
 	</li>
 	{{end}}
 </ul>
+{{ end }}
 
 <hr>
 </div>

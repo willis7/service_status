@@ -9,11 +9,23 @@ var tpl *template.Template
 
 // Page represents the data of the status page.
 type Page struct {
-	Title  string
-	Status template.HTML
-	Up     []string
-	Down   map[string]int
-	Time   string
+	Title    string
+	Status   template.HTML
+	Up       []string
+	Degraded map[string]int
+	Down     map[string]int
+	Time     string
+}
+
+// StatusHTML converts a known status string to template.HTML.
+// It returns "success" for any unrecognized input.
+func StatusHTML(s string) template.HTML {
+	switch s {
+	case "danger", "degraded", "success":
+		return template.HTML(s)
+	default:
+		return "success"
+	}
 }
 
 // LoadTemplate parses the templates in the templates directory.

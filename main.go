@@ -11,6 +11,9 @@ import (
 	"github.com/willis7/service_status/status"
 )
 
+// defaultOutageMinutes is the default duration in minutes to display for service outages.
+const defaultOutageMinutes = 60
+
 func init() {
 	status.LoadTemplate()
 }
@@ -117,6 +120,7 @@ func main() {
 	}
 
 	down := make(map[string]int)
+	degraded := make(map[string]int)
 	var up []string
 
 	for _, service := range services {
@@ -124,20 +128,37 @@ func main() {
 		svc := service.GetService()
 		displayName := svc.DisplayName()
 		if err != nil {
-			down[displayName] = 60
-			notifyManager.CheckAndNotify(svc.URL, false)
+			if status.IsDegraded(err) {
+				degraded[displayName] = defaultOutageMinutes
+				notifyManager.CheckAndNotify(svc.URL, true) // Degraded is still partially available
+			} else {
+				down[displayName] = defaultOutageMinutes
+				notifyManager.CheckAndNotify(svc.URL, false)
+			}
 			continue
 		}
 		up = append(up, displayName)
 		notifyManager.CheckAndNotify(svc.URL, true)
 	}
 
+	// Determine overall status
+	var overallStatus string
+	switch {
+	case len(down) > 0:
+		overallStatus = "danger"
+	case len(degraded) > 0:
+		overallStatus = "degraded"
+	default:
+		overallStatus = "success"
+	}
+
 	p := status.Page{
-		Title:  "My Status",
-		Status: "danger",
-		Up:     up,
-		Down:   down,
-		Time:   time.Now().Format("2006-01-02 15:04:05"),
+		Title:    "My Status",
+		Status:   status.StatusHTML(overallStatus),
+		Up:       up,
+		Degraded: degraded,
+		Down:     down,
+		Time:     time.Now().Format("2006-01-02 15:04:05"),
 	}
 
 	// create and serve the page

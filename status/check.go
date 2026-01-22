@@ -12,14 +12,25 @@ import (
 	"time"
 )
 
-// ErrServiceUnavailable implements error signifying a service is unavailable.
+// Sentinel errors for service status checks.
+//
+// ErrServiceDegraded indicates a service is operational but performing below
+// normal parameters. Custom Pinger implementations can return this error to
+// signal degraded performance (e.g., slow response times, partial functionality).
+// Use IsDegraded(err) to check for this condition.
 var (
 	ErrServiceUnavailable = errors.New("commands: service unavailable")
+	ErrServiceDegraded    = errors.New("commands: service degraded")
 	ErrRegexNotFound      = errors.New("commands: regex not found")
 	ErrInvalidCreate      = errors.New("commands: invalid type for create")
 	ErrHostRequired       = errors.New("commands: host is required for icmp check")
 	ErrInvalidHostname    = errors.New("commands: invalid hostname for icmp check")
 )
+
+// IsDegraded returns true if the error represents a degraded service state.
+func IsDegraded(err error) bool {
+	return errors.Is(err, ErrServiceDegraded)
+}
 
 // icmpPingTimeoutSeconds is the timeout in seconds for ICMP ping attempts (string for CLI argument).
 const icmpPingTimeoutSeconds = "5"
@@ -244,7 +255,7 @@ func (f *ICMPFactory) Create(s Service) (Pinger, error) {
 	}, nil
 }
 
-// isValidHostname checks if a string is a valid hostname or IP address
+// isValidHostname checks if a string is a valid hostname or IP address.
 func isValidHostname(host string) bool {
 	// Check if it's a valid IP address
 	if net.ParseIP(host) != nil {

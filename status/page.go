@@ -7,7 +7,7 @@ import (
 
 var tpl *template.Template
 
-// Page represents the data of the status page
+// Page represents the data of the status page.
 type Page struct {
 	Title  string
 	Status template.HTML
@@ -16,12 +16,12 @@ type Page struct {
 	Time   string
 }
 
-// LoadTemplate parses the templates in the templates dir
+// LoadTemplate parses the templates in the templates directory.
 func LoadTemplate() {
 	tpl = template.Must(template.ParseGlob("templates/*.gohtml"))
 }
 
-// Index is a HandlerFunc which closes over a Page data structure
+// Index is a HandlerFunc that closes over a Page data structure.
 func Index(p Page) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := tpl.ExecuteTemplate(w, "status.gohtml", p); err != nil {

@@ -15,13 +15,12 @@ func init() {
 	status.LoadTemplate()
 }
 
-// Config holds a list of services to be
-// checked
+// Config holds a list of services to be checked.
 type Config struct {
 	Services []status.Service `json:"services"`
 }
 
-// CreateFactories will return a slice of Pinger concrete services
+// CreateFactories returns a slice of Pinger concrete services.
 func (c *Config) CreateFactories() ([]status.Pinger, error) {
 	var checks []status.Pinger
 
@@ -47,8 +46,7 @@ func (c *Config) CreateFactories() ([]status.Pinger, error) {
 	return checks, nil
 }
 
-// LoadConfiguration takes a configuration file and returns
-// a Config struct
+// LoadConfiguration takes a configuration file and returns a Config struct.
 func LoadConfiguration(file string) (Config, error) {
 	var config Config
 	configFile, err := os.Open(file)

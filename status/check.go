@@ -7,14 +7,14 @@ import (
 	"regexp"
 )
 
-// ErrServiceUnavailable implements error signifying a service is unavailable
+// ErrServiceUnavailable implements error signifying a service is unavailable.
 var (
 	ErrServiceUnavailable = errors.New("commands: service unavailable")
 	ErrRegexNotFound      = errors.New("commands: regex not found")
 	ErrInvalidCreate      = errors.New("commands: invalid type for create")
 )
 
-// Service represents a single endpoint to be tested
+// Service represents a single endpoint to be tested.
 type Service struct {
 	Type  string `json:"type"`
 	URL   string `json:"url"`
@@ -23,31 +23,31 @@ type Service struct {
 }
 
 // Pinger is an interface which describes how
-// to test a service status
+// to test a service status.
 type Pinger interface {
 	GetService() *Service
 	Status() error
 }
 
-// PingerFactory is a single method interface which describes
+// PingerFactory is a single method interface that describes
 // how to create a Pinger object.
 type PingerFactory interface {
 	Create(Service) (Pinger, error)
 }
 
 // Ping performs a ping-like test of a
-// services availability
+// service's availability.
 type Ping struct {
 	Service
 }
 
-// GetService return the Service pointer
+// GetService returns the Service pointer.
 func (p *Ping) GetService() *Service {
 	return &p.Service
 }
 
 // Status sends a HEAD http request and checks for a valid
-// http responce code
+// http response code.
 func (p *Ping) Status() error {
 	resp, err := http.Head(p.URL)
 	if err != nil {
@@ -62,12 +62,11 @@ func (p *Ping) Status() error {
 	return nil
 }
 
-// PingFactory implements the PingerFactory
-// interface
+// PingFactory implements the PingerFactory interface.
 type PingFactory struct{}
 
-// Create returns a pointer to a Pinger
-func (factory *PingFactory) Create(s Service) (Pinger, error) {
+// Create returns a pointer to a Pinger.
+func (f *PingFactory) Create(s Service) (Pinger, error) {
 	if s.Type != "ping" {
 		return nil, ErrInvalidCreate
 	}
@@ -76,21 +75,21 @@ func (factory *PingFactory) Create(s Service) (Pinger, error) {
 	}, nil
 }
 
-// Grep checks a response body for a value
+// Grep checks a response body for a value.
 type Grep struct {
 	Service
 }
 
-// GetService return the Service pointer
-func (p *Grep) GetService() *Service {
-	return &p.Service
+// GetService returns the Service pointer.
+func (g *Grep) GetService() *Service {
+	return &g.Service
 }
 
 // Status requests a page given a URL and checks the response for
-// a value matching the regex
-func (p *Grep) Status() error {
+// a value matching the regex.
+func (g *Grep) Status() error {
 	// hit the URL and get a response
-	resp, err := http.Get(p.URL)
+	resp, err := http.Get(g.URL)
 	if err != nil {
 		return err
 	}
@@ -104,7 +103,7 @@ func (p *Grep) Status() error {
 	if err != nil {
 		return err
 	}
-	re := regexp.MustCompile(p.Regex)
+	re := regexp.MustCompile(g.Regex)
 	if !re.Match(bodyBytes) {
 		return ErrRegexNotFound
 	}
@@ -112,12 +111,11 @@ func (p *Grep) Status() error {
 	return nil
 }
 
-// GrepFactory implements the PingerFactory
-// interface
+// GrepFactory implements the PingerFactory interface.
 type GrepFactory struct{}
 
-// Create returns a pointer to a Pinger
-func (factory *GrepFactory) Create(s Service) (Pinger, error) {
+// Create returns a pointer to a Pinger.
+func (f *GrepFactory) Create(s Service) (Pinger, error) {
 	if s.Type != "grep" {
 		return nil, ErrInvalidCreate
 	}
@@ -128,7 +126,7 @@ func (factory *GrepFactory) Create(s Service) (Pinger, error) {
 }
 
 // validStatus checks the input against a list of known-good
-// http status codes and returns a bool
+// http status codes and returns a bool.
 func validStatus(code int) bool {
 	return code == http.StatusOK
 }

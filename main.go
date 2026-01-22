@@ -85,9 +85,9 @@ func main() {
 	}
 
 	// Setup notification manager
-	cooldown := time.Duration(config.AlertCooldown) * time.Second
-	if cooldown == 0 {
-		cooldown = 5 * time.Minute // default cooldown
+	cooldown := 5 * time.Minute // default
+	if config.AlertCooldown > 0 {
+		cooldown = time.Duration(config.AlertCooldown) * time.Second
 	}
 	notifyManager := status.NewNotificationManager(cooldown)
 

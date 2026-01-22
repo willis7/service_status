@@ -13,9 +13,13 @@ import (
 // NotifyError implements error signifying notification failures.
 var (
 	ErrNotifyFailed    = errors.New("notify: notification delivery failed")
-	ErrCooldownActive  = errors.New("notify: cooldown period active")
 	ErrInvalidNotifier = errors.New("notify: invalid notifier type")
 )
+
+// isSuccessStatus checks if an HTTP status code indicates success (2xx range).
+func isSuccessStatus(code int) bool {
+	return code >= 200 && code < 300
+}
 
 // AlertType represents the type of alert being sent.
 type AlertType string
@@ -65,7 +69,7 @@ type NotificationManager struct {
 // NewNotificationManager creates a new NotificationManager with the given cooldown period.
 func NewNotificationManager(cooldown time.Duration) *NotificationManager {
 	return &NotificationManager{
-		notifiers:    make([]Notifier, 0),
+		notifiers:    nil,
 		cooldown:     cooldown,
 		lastAlert:    make(map[string]time.Time),
 		serviceState: make(map[string]bool),
@@ -94,8 +98,7 @@ func (nm *NotificationManager) CheckAndNotify(serviceURL string, isUp bool) bool
 	}
 
 	// Check cooldown
-	alertKey := serviceURL
-	if lastTime, ok := nm.lastAlert[alertKey]; ok {
+	if lastTime, ok := nm.lastAlert[serviceURL]; ok {
 		if time.Since(lastTime) < nm.cooldown {
 			return false
 		}
@@ -130,7 +133,7 @@ func (nm *NotificationManager) CheckAndNotify(serviceURL string, isUp bool) bool
 	}
 
 	if sent {
-		nm.lastAlert[alertKey] = time.Now()
+		nm.lastAlert[serviceURL] = time.Now()
 	}
 
 	return sent
@@ -190,7 +193,7 @@ func (w *WebhookNotifier) Notify(alert Alert) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if !isSuccessStatus(resp.StatusCode) {
 		return ErrNotifyFailed
 	}
 
@@ -276,7 +279,7 @@ func (s *SlackNotifier) Notify(alert Alert) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if !isSuccessStatus(resp.StatusCode) {
 		return ErrNotifyFailed
 	}
 
@@ -358,7 +361,7 @@ func (d *DiscordNotifier) Notify(alert Alert) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if !isSuccessStatus(resp.StatusCode) {
 		return ErrNotifyFailed
 	}
 
@@ -419,17 +422,13 @@ func (f *LogFactory) Create(config NotifierConfig) (Notifier, error) {
 func CreateNotifier(config NotifierConfig) (Notifier, error) {
 	switch config.Type {
 	case "webhook":
-		f := WebhookFactory{}
-		return f.Create(config)
+		return NewWebhookNotifier(config.WebhookURL), nil
 	case "slack":
-		f := SlackFactory{}
-		return f.Create(config)
+		return NewSlackNotifier(config.WebhookURL, config.Channel, config.Username), nil
 	case "discord":
-		f := DiscordFactory{}
-		return f.Create(config)
+		return NewDiscordNotifier(config.WebhookURL, config.Username), nil
 	case "log":
-		f := LogFactory{}
-		return f.Create(config)
+		return NewLogNotifier(), nil
 	default:
 		return nil, ErrInvalidNotifier
 	}

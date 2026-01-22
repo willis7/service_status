@@ -13,8 +13,13 @@ import (
 func TestWebhookNotifierSuccess(t *testing.T) {
 	var receivedPayload WebhookPayload
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &receivedPayload)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("failed to read request body: %v", err)
+		}
+		if err := json.Unmarshal(body, &receivedPayload); err != nil {
+			t.Fatalf("failed to unmarshal payload: %v", err)
+		}
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
@@ -85,8 +90,13 @@ func TestWebhookNotifierType(t *testing.T) {
 func TestSlackNotifierSuccess(t *testing.T) {
 	var receivedPayload SlackPayload
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &receivedPayload)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("failed to read request body: %v", err)
+		}
+		if err := json.Unmarshal(body, &receivedPayload); err != nil {
+			t.Fatalf("failed to unmarshal payload: %v", err)
+		}
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
@@ -121,8 +131,13 @@ func TestSlackNotifierSuccess(t *testing.T) {
 func TestSlackNotifierRecovery(t *testing.T) {
 	var receivedPayload SlackPayload
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &receivedPayload)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("failed to read request body: %v", err)
+		}
+		if err := json.Unmarshal(body, &receivedPayload); err != nil {
+			t.Fatalf("failed to unmarshal payload: %v", err)
+		}
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
@@ -158,8 +173,13 @@ func TestSlackNotifierType(t *testing.T) {
 func TestDiscordNotifierSuccess(t *testing.T) {
 	var receivedPayload DiscordPayload
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &receivedPayload)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("failed to read request body: %v", err)
+		}
+		if err := json.Unmarshal(body, &receivedPayload); err != nil {
+			t.Fatalf("failed to unmarshal payload: %v", err)
+		}
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
@@ -191,8 +211,13 @@ func TestDiscordNotifierSuccess(t *testing.T) {
 func TestDiscordNotifierRecovery(t *testing.T) {
 	var receivedPayload DiscordPayload
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &receivedPayload)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("failed to read request body: %v", err)
+		}
+		if err := json.Unmarshal(body, &receivedPayload); err != nil {
+			t.Fatalf("failed to unmarshal payload: %v", err)
+		}
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()

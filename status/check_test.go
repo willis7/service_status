@@ -15,20 +15,25 @@ func TestPingSuccess(t *testing.T) {
 	defer ts.Close()
 
 	tc := Ping{Service: Service{URL: ts.URL}}
-	if tc.Status() != nil {
-		t.Fail()
+	if err := tc.Status(); err != nil {
+		t.Errorf("expected no error, got %v", err)
 	}
 }
 
 func TestPingFail(t *testing.T) {
 	tc := Ping{Service: Service{URL: "garbage"}}
-	if tc.Status() == nil {
-		t.Fail()
+	if err := tc.Status(); err == nil {
+		t.Errorf("expected error for invalid URL, got nil")
 	}
 }
 
 func TestPingStatusCodeFail(t *testing.T) {
-	tc := Ping{Service: Service{URL: "http://google.com/xyzabc"}}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+
+	tc := Ping{Service: Service{URL: ts.URL}}
 	actual := tc.Status()
 	expected := ErrServiceUnavailable
 	if actual != expected {
@@ -48,7 +53,7 @@ func TestPingFactoryCreate(t *testing.T) {
 	ap := reflect.ValueOf(actual)
 	ep := reflect.ValueOf(expected)
 	if ap.Pointer() == ep.Pointer() {
-		t.Errorf("expected %v got %v", ap.Pointer(), ep.Pointer())
+		t.Errorf("expected different pointers, got same: %v", ap.Pointer())
 	}
 }
 
@@ -57,7 +62,7 @@ func TestPingFactoryCreateErr(t *testing.T) {
 	p := PingFactory{}
 	_, err := p.Create(s)
 	if err != ErrInvalidCreate {
-		t.Fatalf("failed create with error: %v", err)
+		t.Errorf("expected ErrInvalidCreate, got %v", err)
 	}
 }
 
@@ -68,20 +73,25 @@ func TestGrepSuccess(t *testing.T) {
 	defer ts.Close()
 
 	tc := Grep{Service: Service{URL: ts.URL, Regex: "Hello World!"}}
-	if tc.Status() != nil {
-		t.Fail()
+	if err := tc.Status(); err != nil {
+		t.Errorf("expected no error, got %v", err)
 	}
 }
 
 func TestGrepFail(t *testing.T) {
 	tc := Grep{Service: Service{URL: "garbage", Regex: "Hello World!"}}
-	if tc.Status() == nil {
-		t.Fail()
+	if err := tc.Status(); err == nil {
+		t.Errorf("expected error for invalid URL, got nil")
 	}
 }
 
 func TestGrepStatusCodeFail(t *testing.T) {
-	tc := Grep{Service: Service{URL: "http://google.com/xyzabc", Regex: "Hello World!"}}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+
+	tc := Grep{Service: Service{URL: ts.URL, Regex: "Hello World!"}}
 	actual := tc.Status()
 	expected := ErrServiceUnavailable
 	if actual != expected {
@@ -90,7 +100,12 @@ func TestGrepStatusCodeFail(t *testing.T) {
 }
 
 func TestGrepRegexFail(t *testing.T) {
-	tc := Grep{Service: Service{URL: "http://google.com", Regex: "Hello World!"}}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "<html><body>Different content</body></html>")
+	}))
+	defer ts.Close()
+
+	tc := Grep{Service: Service{URL: ts.URL, Regex: "Hello World!"}}
 	actual := tc.Status()
 	expected := ErrRegexNotFound
 	if actual != expected {
@@ -110,7 +125,7 @@ func TestGrepFactoryCreate(t *testing.T) {
 	ap := reflect.ValueOf(actual)
 	ep := reflect.ValueOf(expected)
 	if ap.Pointer() == ep.Pointer() {
-		t.Fail()
+		t.Errorf("expected different pointers, got same: %v", ap.Pointer())
 	}
 }
 
@@ -119,7 +134,7 @@ func TestGrepFactoryCreateErr(t *testing.T) {
 	p := GrepFactory{}
 	_, err := p.Create(s)
 	if err != ErrInvalidCreate {
-		t.Fail()
+		t.Errorf("expected ErrInvalidCreate, got %v", err)
 	}
 }
 
@@ -135,8 +150,8 @@ func TestValidStatus(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			if validStatus(tc.code) != tc.output {
-				t.Fail()
+			if got := validStatus(tc.code); got != tc.output {
+				t.Errorf("validStatus(%d) = %v, want %v", tc.code, got, tc.output)
 			}
 		})
 	}

@@ -75,6 +75,25 @@ func TestCreateFactories(t *testing.T) {
 			expected: 2,
 			wantErr:  false,
 		},
+		{
+			name: "single icmp service",
+			services: []status.Service{
+				{Type: "icmp", URL: "8.8.8.8"},
+			},
+			expected: 1,
+			wantErr:  false,
+		},
+		{
+			name: "mixed services with icmp",
+			services: []status.Service{
+				{Type: "ping", URL: "http://example1.com"},
+				{Type: "icmp", URL: "8.8.8.8"},
+				{Type: "grep", URL: "http://example2.com", Regex: "pattern"},
+				{Type: "tcp", URL: "localhost", Port: "8080"},
+			},
+			expected: 4,
+			wantErr:  false,
+		},
 	}
 
 	for _, tc := range tt {

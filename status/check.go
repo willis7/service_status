@@ -5,7 +5,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os/exec"
 	"regexp"
+	"runtime"
 	"time"
 )
 
@@ -14,7 +16,11 @@ var (
 	ErrServiceUnavailable = errors.New("commands: service unavailable")
 	ErrRegexNotFound      = errors.New("commands: regex not found")
 	ErrInvalidCreate      = errors.New("commands: invalid type for create")
+	ErrHostRequired       = errors.New("commands: host is required for icmp check")
 )
+
+// icmpPingTimeout is the timeout duration for ICMP ping attempts.
+const icmpPingTimeout = "5"
 
 // tcpDialTimeout is the timeout duration for TCP connection attempts.
 const tcpDialTimeout = 10 * time.Second
@@ -180,5 +186,54 @@ func (f *TCPFactory) Create(s Service) (Pinger, error) {
 	}
 	return &TCP{
 		Service: Service{URL: s.URL, Port: s.Port, Name: s.Name},
+	}, nil
+}
+
+// ICMP performs a true ICMP ping to check host reachability at the network level.
+// It shells out to the system ping command for cross-platform compatibility
+// and to avoid requiring elevated privileges.
+type ICMP struct {
+	Service
+}
+
+// GetService returns the Service pointer.
+func (i *ICMP) GetService() *Service {
+	return &i.Service
+}
+
+// Status executes an ICMP ping against the host and returns an error
+// if the host is unreachable.
+func (i *ICMP) Status() error {
+	var cmd *exec.Cmd
+
+	// Construct platform-specific ping command
+	// macOS/BSD uses -c for count and -t for timeout (TTL in Linux)
+	// Linux uses -c for count and -W for timeout
+	if runtime.GOOS == "darwin" || runtime.GOOS == "freebsd" {
+		cmd = exec.Command("ping", "-c", "1", "-t", icmpPingTimeout, i.URL)
+	} else {
+		// Linux and other Unix-like systems
+		cmd = exec.Command("ping", "-c", "1", "-W", icmpPingTimeout, i.URL)
+	}
+
+	if err := cmd.Run(); err != nil {
+		return ErrServiceUnavailable
+	}
+	return nil
+}
+
+// ICMPFactory implements the PingerFactory interface.
+type ICMPFactory struct{}
+
+// Create returns a pointer to a Pinger.
+func (f *ICMPFactory) Create(s Service) (Pinger, error) {
+	if s.Type != "icmp" {
+		return nil, ErrInvalidCreate
+	}
+	if s.URL == "" {
+		return nil, ErrHostRequired
+	}
+	return &ICMP{
+		Service: Service{URL: s.URL, Name: s.Name},
 	}, nil
 }

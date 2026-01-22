@@ -308,3 +308,87 @@ func TestTCPFactoryPreservesName(t *testing.T) {
 		t.Errorf("expected Name 'My TCP Service', got %v", got)
 	}
 }
+
+func TestICMPSuccess(t *testing.T) {
+	// Ping localhost which should always be reachable
+	ic := ICMP{Service: Service{URL: "127.0.0.1"}}
+	if err := ic.Status(); err != nil {
+		t.Errorf("expected no error pinging localhost, got %v", err)
+	}
+}
+
+func TestICMPFail(t *testing.T) {
+	// Use an invalid/unreachable IP address
+	// 192.0.2.1 is a TEST-NET address that should be unreachable
+	ic := ICMP{Service: Service{URL: "192.0.2.1"}}
+	if err := ic.Status(); err == nil {
+		t.Errorf("expected error for unreachable host, got nil")
+	}
+}
+
+func TestICMPInvalidHost(t *testing.T) {
+	ic := ICMP{Service: Service{URL: "invalid.host.that.does.not.exist.local"}}
+	actual := ic.Status()
+	expected := ErrServiceUnavailable
+	if actual != expected {
+		t.Errorf("expected %v got %v", expected, actual)
+	}
+}
+
+func TestICMPFactoryCreate(t *testing.T) {
+	s := Service{Type: "icmp", URL: "8.8.8.8"}
+	f := ICMPFactory{}
+	actual, err := f.Create(s)
+	if err != nil {
+		t.Fatalf("failed create with error: %v", err)
+	}
+
+	expected := &ICMP{Service: Service{URL: "8.8.8.8"}}
+	ap := reflect.ValueOf(actual)
+	ep := reflect.ValueOf(expected)
+	if ap.Pointer() == ep.Pointer() {
+		t.Errorf("expected different pointers, got same: %v", ap.Pointer())
+	}
+}
+
+func TestICMPFactoryCreateErr(t *testing.T) {
+	s := Service{Type: "ping", URL: "8.8.8.8"}
+	f := ICMPFactory{}
+	_, err := f.Create(s)
+	if err != ErrInvalidCreate {
+		t.Errorf("expected ErrInvalidCreate, got %v", err)
+	}
+}
+
+func TestICMPFactoryCreateEmptyHost(t *testing.T) {
+	s := Service{Type: "icmp", URL: ""}
+	f := ICMPFactory{}
+	_, err := f.Create(s)
+	if err != ErrHostRequired {
+		t.Errorf("expected ErrHostRequired, got %v", err)
+	}
+}
+
+func TestICMPGetService(t *testing.T) {
+	s := Service{URL: "8.8.8.8", Name: "Google DNS"}
+	ic := ICMP{Service: s}
+	got := ic.GetService()
+	if got.URL != s.URL {
+		t.Errorf("expected URL %v, got %v", s.URL, got.URL)
+	}
+	if got.Name != s.Name {
+		t.Errorf("expected Name %v, got %v", s.Name, got.Name)
+	}
+}
+
+func TestICMPFactoryPreservesName(t *testing.T) {
+	s := Service{Type: "icmp", URL: "8.8.8.8", Name: "Google DNS"}
+	f := ICMPFactory{}
+	ic, err := f.Create(s)
+	if err != nil {
+		t.Fatalf("failed to create icmp: %v", err)
+	}
+	if got := ic.GetService().Name; got != "Google DNS" {
+		t.Errorf("expected Name 'Google DNS', got %v", got)
+	}
+}

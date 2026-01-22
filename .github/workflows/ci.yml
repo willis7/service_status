@@ -20,6 +20,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
+          cache: false  # No external dependencies, nothing to cache
 
       - name: Display Go version
         run: go version

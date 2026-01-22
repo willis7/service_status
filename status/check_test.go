@@ -240,3 +240,71 @@ func TestTCPGetService(t *testing.T) {
 		t.Errorf("expected Port %v, got %v", s.Port, got.Port)
 	}
 }
+
+func TestServiceDisplayName(t *testing.T) {
+	tt := []struct {
+		name     string
+		service  Service
+		expected string
+	}{
+		{
+			name:     "returns name when set",
+			service:  Service{URL: "http://example.com", Name: "Example Service"},
+			expected: "Example Service",
+		},
+		{
+			name:     "falls back to URL when name is empty",
+			service:  Service{URL: "http://example.com", Name: ""},
+			expected: "http://example.com",
+		},
+		{
+			name:     "falls back to URL when name is not set",
+			service:  Service{URL: "http://example.com"},
+			expected: "http://example.com",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.service.DisplayName(); got != tc.expected {
+				t.Errorf("DisplayName() = %v, want %v", got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestPingFactoryPreservesName(t *testing.T) {
+	s := Service{Type: "ping", URL: "http://example.com", Name: "My Service"}
+	f := PingFactory{}
+	p, err := f.Create(s)
+	if err != nil {
+		t.Fatalf("failed to create ping: %v", err)
+	}
+	if got := p.GetService().Name; got != "My Service" {
+		t.Errorf("expected Name 'My Service', got %v", got)
+	}
+}
+
+func TestGrepFactoryPreservesName(t *testing.T) {
+	s := Service{Type: "grep", URL: "http://example.com", Regex: "test", Name: "My Grep Service"}
+	f := GrepFactory{}
+	g, err := f.Create(s)
+	if err != nil {
+		t.Fatalf("failed to create grep: %v", err)
+	}
+	if got := g.GetService().Name; got != "My Grep Service" {
+		t.Errorf("expected Name 'My Grep Service', got %v", got)
+	}
+}
+
+func TestTCPFactoryPreservesName(t *testing.T) {
+	s := Service{Type: "tcp", URL: "localhost", Port: "8080", Name: "My TCP Service"}
+	f := TCPFactory{}
+	tc, err := f.Create(s)
+	if err != nil {
+		t.Fatalf("failed to create tcp: %v", err)
+	}
+	if got := tc.GetService().Name; got != "My TCP Service" {
+		t.Errorf("expected Name 'My TCP Service', got %v", got)
+	}
+}

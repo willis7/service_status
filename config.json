@@ -2,17 +2,20 @@
   "services": [
     {
         "type": "ping",
-        "url": "http://google.com"
+        "url": "http://google.com",
+        "name": "Google"
     },
     {
       "type": "grep",
       "url": "https://stackoverflow.com/",
-      "regex": "Ask Question"
+      "regex": "Ask Question",
+      "name": "Stack Overflow"
     },
     {
       "type": "grep",
       "url": "https://www.bbc.co.uk/",
-      "regex": "hello world"
+      "regex": "hello world",
+      "name": "BBC News"
     }
   ]
 }

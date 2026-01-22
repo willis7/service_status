@@ -114,14 +114,15 @@ func main() {
 
 	for _, service := range services {
 		err := service.Status()
-		serviceURL := service.GetService().URL
+		svc := service.GetService()
+		displayName := svc.DisplayName()
 		if err != nil {
-			down[serviceURL] = 60
-			notifyManager.CheckAndNotify(serviceURL, false)
+			down[displayName] = 60
+			notifyManager.CheckAndNotify(svc.URL, false)
 			continue
 		}
-		up = append(up, serviceURL)
-		notifyManager.CheckAndNotify(serviceURL, true)
+		up = append(up, displayName)
+		notifyManager.CheckAndNotify(svc.URL, true)
 	}
 
 	p := status.Page{

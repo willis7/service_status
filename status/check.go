@@ -25,6 +25,15 @@ type Service struct {
 	URL   string `json:"url"`
 	Port  string `json:"port,omitempty"`
 	Regex string `json:"regex,omitempty"`
+	Name  string `json:"name,omitempty"`
+}
+
+// DisplayName returns the Name if set, otherwise falls back to the URL.
+func (s *Service) DisplayName() string {
+	if s.Name != "" {
+		return s.Name
+	}
+	return s.URL
 }
 
 // Pinger is an interface which describes how
@@ -76,7 +85,7 @@ func (f *PingFactory) Create(s Service) (Pinger, error) {
 		return nil, ErrInvalidCreate
 	}
 	return &Ping{
-		Service: Service{URL: s.URL},
+		Service: Service{URL: s.URL, Name: s.Name},
 	}, nil
 }
 
@@ -126,7 +135,7 @@ func (f *GrepFactory) Create(s Service) (Pinger, error) {
 	}
 
 	return &Grep{
-		Service: Service{URL: s.URL, Regex: s.Regex},
+		Service: Service{URL: s.URL, Regex: s.Regex, Name: s.Name},
 	}, nil
 }
 
@@ -170,6 +179,6 @@ func (f *TCPFactory) Create(s Service) (Pinger, error) {
 		return nil, errors.New("commands: port is required for tcp check")
 	}
 	return &TCP{
-		Service: Service{URL: s.URL, Port: s.Port},
+		Service: Service{URL: s.URL, Port: s.Port, Name: s.Name},
 	}, nil
 }

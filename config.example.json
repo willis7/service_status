@@ -35,5 +35,6 @@
       "type": "log"
     }
   ],
-  "alert_cooldown": 300
+  "alert_cooldown": 300,
+  "storage_path": "/var/lib/service_status/status.db"
 }

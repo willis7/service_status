@@ -63,6 +63,7 @@ type NotificationManager struct {
 	cooldown     time.Duration
 	lastAlert    map[string]time.Time
 	serviceState map[string]bool // true = up, false = down
+	storage      *Storage        // optional; if nil, alerts are not persisted
 	mu           sync.RWMutex
 }
 
@@ -81,6 +82,13 @@ func (nm *NotificationManager) AddNotifier(n Notifier) {
 	nm.mu.Lock()
 	defer nm.mu.Unlock()
 	nm.notifiers = append(nm.notifiers, n)
+}
+
+// SetStorage sets the storage backend for recording alerts.
+func (nm *NotificationManager) SetStorage(s *Storage) {
+	nm.mu.Lock()
+	defer nm.mu.Unlock()
+	nm.storage = s
 }
 
 // CheckAndNotify checks if a service status changed and sends notifications.
@@ -134,6 +142,13 @@ func (nm *NotificationManager) CheckAndNotify(serviceURL string, isUp bool) bool
 
 	if sent {
 		nm.lastAlert[serviceURL] = time.Now()
+
+		// Record alert to storage if enabled
+		if nm.storage != nil {
+			if err := nm.storage.RecordAlert(alert); err != nil {
+				log.Printf("storage: failed to record alert: %v", err)
+			}
+		}
 	}
 
 	return sent

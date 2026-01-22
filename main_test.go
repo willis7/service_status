@@ -194,3 +194,28 @@ func TestLoadConfigurationFileNotFound(t *testing.T) {
 		t.Error("expected error for nonexistent file, got nil")
 	}
 }
+
+func TestConfigStoragePath(t *testing.T) {
+	// Test that the config struct has the StoragePath field
+	config := Config{
+		Services:      []status.Service{},
+		StoragePath:   "test.db",
+		AlertCooldown: 300,
+	}
+
+	if config.StoragePath != "test.db" {
+		t.Errorf("expected storage_path to be 'test.db', got %s", config.StoragePath)
+	}
+}
+
+func TestConfigStoragePathEmpty(t *testing.T) {
+	// Test that empty storage_path is valid (storage disabled by default)
+	config := Config{
+		Services:    []status.Service{},
+		StoragePath: "",
+	}
+
+	if config.StoragePath != "" {
+		t.Errorf("expected storage_path to be empty, got %s", config.StoragePath)
+	}
+}

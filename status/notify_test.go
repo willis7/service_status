@@ -560,3 +560,54 @@ func TestNotificationManagerNoNotifiers(t *testing.T) {
 		t.Error("expected no notification with no notifiers")
 	}
 }
+
+func TestNotificationManagerSetStorage(t *testing.T) {
+	// Create a temporary storage
+	tmpDir := t.TempDir()
+	storage, err := NewStorage(tmpDir + "/test.db")
+	if err != nil {
+		t.Fatalf("failed to create storage: %v", err)
+	}
+	defer storage.Close()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	nm := NewNotificationManager(0)
+	nm.AddNotifier(NewWebhookNotifier(ts.URL))
+	nm.SetStorage(storage)
+
+	// Trigger a notification
+	sent := nm.CheckAndNotify("http://example.com", false)
+	if !sent {
+		t.Error("expected notification to be sent")
+	}
+
+	// Verify alert was recorded in storage
+	alerts, err := storage.GetRecentAlerts(10)
+	if err != nil {
+		t.Fatalf("failed to get recent alerts: %v", err)
+	}
+	if len(alerts) != 1 {
+		t.Fatalf("expected 1 alert, got %d", len(alerts))
+	}
+	if alerts[0].ServiceURL != "http://example.com" {
+		t.Errorf("expected service URL http://example.com, got %s", alerts[0].ServiceURL)
+	}
+	if alerts[0].AlertType != "down" {
+		t.Errorf("expected alert type down, got %s", alerts[0].AlertType)
+	}
+}
+
+func TestNotificationManagerSetStorageNil(t *testing.T) {
+	nm := NewNotificationManager(0)
+	nm.SetStorage(nil) // Should not panic
+
+	// Should still work without storage
+	sent := nm.CheckAndNotify("http://example.com", false)
+	if sent {
+		t.Error("expected no notification with no notifiers")
+	}
+}

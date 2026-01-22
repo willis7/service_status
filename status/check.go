@@ -34,6 +34,12 @@ func IsDegraded(err error) bool {
 	return errors.Is(err, ErrServiceDegraded)
 }
 
+// IsOperational returns true if the error indicates the service is operational
+// (either fully up or degraded but still functioning).
+func IsOperational(err error) bool {
+	return err == nil || IsDegraded(err)
+}
+
 // icmpPingTimeoutSeconds is the timeout in seconds for ICMP ping attempts (string for CLI argument).
 const icmpPingTimeoutSeconds = "5"
 

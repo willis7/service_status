@@ -24,6 +24,9 @@ type Config struct {
 	Notifiers []status.NotifierConfig `json:"notifiers,omitempty"`
 	// AlertCooldown is the minimum time between alerts for the same service (in seconds)
 	AlertCooldown int `json:"alert_cooldown,omitempty"`
+	// StoragePath is the path to the SQLite database for persistent storage.
+	// If empty, storage is disabled (opt-in feature).
+	StoragePath string `json:"storage_path,omitempty"`
 }
 
 // CreateFactories returns a slice of Pinger concrete services.
@@ -108,12 +111,29 @@ func main() {
 		log.Fatalf("create factories: %v", err)
 	}
 
+	// Setup storage if configured (opt-in feature)
+	var storage *status.Storage
+	if config.StoragePath != "" {
+		var storageErr error
+		storage, storageErr = status.NewStorage(config.StoragePath)
+		if storageErr != nil {
+			log.Fatalf("failed to initialize storage: %v", storageErr)
+		}
+		defer storage.Close()
+		log.Printf("storage enabled: %s", config.StoragePath)
+	}
+
 	// Setup notification manager
 	cooldown := 5 * time.Minute // default
 	if config.AlertCooldown > 0 {
 		cooldown = time.Duration(config.AlertCooldown) * time.Second
 	}
 	notifyManager := status.NewNotificationManager(cooldown)
+
+	// Connect storage to notification manager for recording alerts
+	if storage != nil {
+		notifyManager.SetStorage(storage)
+	}
 
 	// Add configured notifiers
 	for _, notifierConfig := range config.Notifiers {
@@ -134,6 +154,22 @@ func main() {
 		err := service.Status()
 		svc := service.GetService()
 		displayName := svc.DisplayName()
+
+		// Record status to storage if enabled
+		if storage != nil {
+			var errMsg string
+			if err != nil {
+				errMsg = err.Error()
+			}
+			isUp := status.IsOperational(err)
+			if storageErr := storage.RecordStatus(svc.URL, isUp, errMsg); storageErr != nil {
+				log.Printf("storage: failed to record status: %v", storageErr)
+			}
+			if storageErr := storage.UpdateServiceState(svc.URL, isUp); storageErr != nil {
+				log.Printf("storage: failed to update state: %v", storageErr)
+			}
+		}
+
 		if err != nil {
 			if status.IsDegraded(err) {
 				degraded[displayName] = defaultOutageMinutes

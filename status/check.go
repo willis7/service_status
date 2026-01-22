@@ -3,8 +3,10 @@ package status
 import (
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"regexp"
+	"time"
 )
 
 // ErrServiceUnavailable implements error signifying a service is unavailable.
@@ -129,4 +131,39 @@ func (f *GrepFactory) Create(s Service) (Pinger, error) {
 // http status codes and returns a bool.
 func validStatus(code int) bool {
 	return code == http.StatusOK
+}
+
+// TCP checks if a TCP port is open and accepting connections.
+type TCP struct {
+	Service
+}
+
+// GetService returns the Service pointer.
+func (t *TCP) GetService() *Service {
+	return &t.Service
+}
+
+// Status attempts to establish a TCP connection to the host:port
+// and returns an error if the connection fails.
+func (t *TCP) Status() error {
+	address := net.JoinHostPort(t.URL, t.Port)
+	conn, err := net.DialTimeout("tcp", address, 10*time.Second)
+	if err != nil {
+		return ErrServiceUnavailable
+	}
+	defer conn.Close()
+	return nil
+}
+
+// TCPFactory implements the PingerFactory interface.
+type TCPFactory struct{}
+
+// Create returns a pointer to a Pinger.
+func (f *TCPFactory) Create(s Service) (Pinger, error) {
+	if s.Type != "tcp" {
+		return nil, ErrInvalidCreate
+	}
+	return &TCP{
+		Service: Service{URL: s.URL, Port: s.Port},
+	}, nil
 }

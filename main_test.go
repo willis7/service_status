@@ -47,6 +47,25 @@ func TestCreateFactories(t *testing.T) {
 			wantErr:  false,
 		},
 		{
+			name: "single tcp service",
+			services: []status.Service{
+				{Type: "tcp", URL: "localhost", Port: "8080"},
+			},
+			expected: 1,
+			wantErr:  false,
+		},
+		{
+			name: "mixed services with tcp",
+			services: []status.Service{
+				{Type: "ping", URL: "http://example1.com"},
+				{Type: "tcp", URL: "localhost", Port: "3306"},
+				{Type: "grep", URL: "http://example2.com", Regex: "pattern"},
+				{Type: "tcp", URL: "localhost", Port: "5432"},
+			},
+			expected: 4,
+			wantErr:  false,
+		},
+		{
 			name: "unknown service type is skipped",
 			services: []status.Service{
 				{Type: "ping", URL: "http://example1.com"},

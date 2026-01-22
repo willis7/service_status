@@ -43,6 +43,13 @@ func (c *Config) CreateFactories() ([]status.Pinger, error) {
 				return nil, fmt.Errorf("failed to create grep object: %w", err)
 			}
 			checks = append(checks, g)
+		case "tcp":
+			tf := status.TCPFactory{}
+			t, err := tf.Create(service)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create tcp object: %w", err)
+			}
+			checks = append(checks, t)
 		}
 	}
 

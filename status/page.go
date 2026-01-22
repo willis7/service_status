@@ -24,6 +24,8 @@ func LoadTemplate() {
 // Index is a HandlerFunc which closes over a Page data structure
 func Index(p Page) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tpl.ExecuteTemplate(w, "status.gohtml", p)
+		if err := tpl.ExecuteTemplate(w, "status.gohtml", p); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }

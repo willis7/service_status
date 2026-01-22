@@ -100,6 +100,9 @@ func (p *Grep) Status() error {
 	}
 
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
 	re := regexp.MustCompile(p.Regex)
 	if !re.Match(bodyBytes) {
 		return ErrRegexNotFound

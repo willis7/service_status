@@ -53,12 +53,15 @@ func (c *Config) CreateFactories() ([]status.Pinger, error) {
 func LoadConfiguration(file string) (Config, error) {
 	var config Config
 	configFile, err := os.Open(file)
-	defer configFile.Close()
 	if err != nil {
 		return config, err
 	}
+	defer configFile.Close()
+
 	jsonParser := json.NewDecoder(configFile)
-	jsonParser.Decode(&config)
+	if err := jsonParser.Decode(&config); err != nil {
+		return config, err
+	}
 	return config, nil
 }
 
@@ -71,7 +74,10 @@ func main() {
 
 	fmt.Println("Starting the application...")
 	// read the config file to determine which services need to be checked
-	config, _ := LoadConfiguration(configPath)
+	config, err := LoadConfiguration(configPath)
+	if err != nil {
+		log.Fatalf("failed to load configuration: %v", err)
+	}
 
 	services, err := config.CreateFactories()
 	if err != nil {
@@ -100,5 +106,7 @@ func main() {
 
 	// create and serve the page
 	http.HandleFunc("/", status.Index(p))
-	http.ListenAndServe(":8080", nil)
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatalf("server error: %v", err)
+	}
 }

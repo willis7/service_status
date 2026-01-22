@@ -53,6 +53,7 @@ func (p *Ping) Status() error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	if !validStatus(resp.StatusCode) {
 		return ErrServiceUnavailable

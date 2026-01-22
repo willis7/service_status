@@ -39,7 +39,7 @@ func (c *Config) CreateFactories() ([]status.Pinger, error) {
 			gf := status.GrepFactory{}
 			g, err := gf.Create(service)
 			if err != nil {
-				return nil, errors.New("failed to create ping object")
+				return nil, errors.New("failed to create grep object")
 			}
 			checks = append(checks, g)
 		}
@@ -91,7 +91,7 @@ func main() {
 		err := service.Status()
 		if err != nil {
 			down[service.GetService().URL] = 60
-			break
+			continue
 		}
 		up = append(up, service.GetService().URL)
 	}

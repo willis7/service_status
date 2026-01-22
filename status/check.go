@@ -16,6 +16,9 @@ var (
 	ErrInvalidCreate      = errors.New("commands: invalid type for create")
 )
 
+// tcpDialTimeout is the timeout duration for TCP connection attempts.
+const tcpDialTimeout = 10 * time.Second
+
 // Service represents a single endpoint to be tested.
 type Service struct {
 	Type  string `json:"type"`
@@ -147,7 +150,7 @@ func (t *TCP) GetService() *Service {
 // and returns an error if the connection fails.
 func (t *TCP) Status() error {
 	address := net.JoinHostPort(t.URL, t.Port)
-	conn, err := net.DialTimeout("tcp", address, 10*time.Second)
+	conn, err := net.DialTimeout("tcp", address, tcpDialTimeout)
 	if err != nil {
 		return ErrServiceUnavailable
 	}
@@ -162,6 +165,9 @@ type TCPFactory struct{}
 func (f *TCPFactory) Create(s Service) (Pinger, error) {
 	if s.Type != "tcp" {
 		return nil, ErrInvalidCreate
+	}
+	if s.Port == "" {
+		return nil, errors.New("commands: port is required for tcp check")
 	}
 	return &TCP{
 		Service: Service{URL: s.URL, Port: s.Port},

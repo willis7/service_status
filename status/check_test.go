@@ -220,6 +220,15 @@ func TestTCPFactoryCreateErr(t *testing.T) {
 	}
 }
 
+func TestTCPFactoryCreateEmptyPort(t *testing.T) {
+	s := Service{Type: "tcp", URL: "localhost", Port: ""}
+	f := TCPFactory{}
+	_, err := f.Create(s)
+	if err == nil {
+		t.Errorf("expected error for empty port, got nil")
+	}
+}
+
 func TestTCPGetService(t *testing.T) {
 	s := Service{URL: "localhost", Port: "8080"}
 	tc := TCP{Service: s}

@@ -15,9 +15,12 @@ func init() {
 	status.LoadTemplate()
 }
 
-// Config holds a list of services to be checked.
+// Config holds a list of services to be checked and notification settings.
 type Config struct {
-	Services []status.Service `json:"services"`
+	Services  []status.Service        `json:"services"`
+	Notifiers []status.NotifierConfig `json:"notifiers,omitempty"`
+	// AlertCooldown is the minimum time between alerts for the same service (in seconds)
+	AlertCooldown int `json:"alert_cooldown,omitempty"`
 }
 
 // CreateFactories returns a slice of Pinger concrete services.
@@ -81,16 +84,37 @@ func main() {
 		log.Fatalf("create factories: %v", err)
 	}
 
+	// Setup notification manager
+	cooldown := time.Duration(config.AlertCooldown) * time.Second
+	if cooldown == 0 {
+		cooldown = 5 * time.Minute // default cooldown
+	}
+	notifyManager := status.NewNotificationManager(cooldown)
+
+	// Add configured notifiers
+	for _, notifierConfig := range config.Notifiers {
+		notifier, err := status.CreateNotifier(notifierConfig)
+		if err != nil {
+			log.Printf("failed to create notifier %s: %v", notifierConfig.Type, err)
+			continue
+		}
+		notifyManager.AddNotifier(notifier)
+		log.Printf("added %s notifier", notifier.Type())
+	}
+
 	down := make(map[string]int)
 	var up []string
 
 	for _, service := range services {
 		err := service.Status()
+		serviceURL := service.GetService().URL
 		if err != nil {
-			down[service.GetService().URL] = 60
+			down[serviceURL] = 60
+			notifyManager.CheckAndNotify(serviceURL, false)
 			continue
 		}
-		up = append(up, service.GetService().URL)
+		up = append(up, serviceURL)
+		notifyManager.CheckAndNotify(serviceURL, true)
 	}
 
 	p := status.Page{

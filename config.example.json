@@ -1,0 +1,39 @@
+{
+  "services": [
+    {
+      "type": "ping",
+      "url": "http://google.com"
+    },
+    {
+      "type": "grep",
+      "url": "https://stackoverflow.com/",
+      "regex": "Ask Question"
+    },
+    {
+      "type": "grep",
+      "url": "https://www.bbc.co.uk/",
+      "regex": "hello world"
+    }
+  ],
+  "notifiers": [
+    {
+      "type": "webhook",
+      "webhook_url": "https://your-webhook-endpoint.com/alerts"
+    },
+    {
+      "type": "slack",
+      "webhook_url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+      "channel": "#alerts",
+      "username": "StatusBot"
+    },
+    {
+      "type": "discord",
+      "webhook_url": "https://discord.com/api/webhooks/YOUR/DISCORD/WEBHOOK",
+      "username": "StatusBot"
+    },
+    {
+      "type": "log"
+    }
+  ],
+  "alert_cooldown": 300
+}

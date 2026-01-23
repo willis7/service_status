@@ -74,11 +74,33 @@ func (s *Service) DisplayName() string {
 	return "unknown"
 }
 
+// StatusResult contains the result of a status check, including timing information.
+type StatusResult struct {
+	// Err is the error from the status check (nil if successful)
+	Err error
+	// ResponseTime is the duration of the check
+	ResponseTime time.Duration
+}
+
 // Pinger is an interface which describes how
 // to test a service status.
 type Pinger interface {
 	GetService() *Service
 	Status() error
+	// StatusWithTiming performs a status check and returns the result with timing information.
+	// ResponseTime measures the total wall-clock duration of the Status() call,
+	// which may include network latency, processing time, and timeouts.
+	StatusWithTiming() StatusResult
+}
+
+// statusWithTiming wraps a status check function and returns the result with timing.
+func statusWithTiming(statusFn func() error) StatusResult {
+	start := time.Now()
+	err := statusFn()
+	return StatusResult{
+		Err:          err,
+		ResponseTime: time.Since(start),
+	}
 }
 
 // PingerFactory is a single method interface that describes
@@ -112,6 +134,11 @@ func (p *Ping) Status() error {
 	}
 
 	return nil
+}
+
+// StatusWithTiming performs a status check and returns the result with timing information.
+func (p *Ping) StatusWithTiming() StatusResult {
+	return statusWithTiming(p.Status)
 }
 
 // PingFactory implements the PingerFactory interface.
@@ -163,6 +190,11 @@ func (g *Grep) Status() error {
 	return nil
 }
 
+// StatusWithTiming performs a status check and returns the result with timing information.
+func (g *Grep) StatusWithTiming() StatusResult {
+	return statusWithTiming(g.Status)
+}
+
 // GrepFactory implements the PingerFactory interface.
 type GrepFactory struct{}
 
@@ -203,6 +235,11 @@ func (t *TCP) Status() error {
 	}
 	defer conn.Close()
 	return nil
+}
+
+// StatusWithTiming performs a status check and returns the result with timing information.
+func (t *TCP) StatusWithTiming() StatusResult {
+	return statusWithTiming(t.Status)
 }
 
 // TCPFactory implements the PingerFactory interface.
@@ -253,6 +290,11 @@ func (i *ICMP) Status() error {
 		return ErrServiceUnavailable
 	}
 	return nil
+}
+
+// StatusWithTiming performs a status check and returns the result with timing information.
+func (i *ICMP) StatusWithTiming() StatusResult {
+	return statusWithTiming(i.Status)
 }
 
 // ICMPFactory implements the PingerFactory interface.
@@ -345,6 +387,11 @@ func (s *Script) Status() error {
 		return ErrServiceUnavailable
 	}
 	return nil
+}
+
+// StatusWithTiming performs a status check and returns the result with timing information.
+func (s *Script) StatusWithTiming() StatusResult {
+	return statusWithTiming(s.Status)
 }
 
 // parseCommand splits a command string into executable and arguments.

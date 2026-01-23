@@ -48,7 +48,7 @@ func TestAPIStatus(t *testing.T) {
 			page: Page{
 				Title:  "Test Status",
 				Status: "success",
-				Up:     []string{"service1", "service2"},
+				Up:     []ServiceInfo{{Name: "service1", ResponseTime: 50 * time.Millisecond}, {Name: "service2", ResponseTime: 100 * time.Millisecond}},
 			},
 			expectedStatus:     "OK",
 			expectedServices:   2,
@@ -59,8 +59,8 @@ func TestAPIStatus(t *testing.T) {
 			page: Page{
 				Title:  "Test Status",
 				Status: "danger",
-				Up:     []string{"service1"},
-				Down:   map[string]int{"service2": 60},
+				Up:     []ServiceInfo{{Name: "service1", ResponseTime: 50 * time.Millisecond}},
+				Down:   map[string]OutageInfo{"service2": {Minutes: 60, ResponseTime: 200 * time.Millisecond}},
 			},
 			expectedStatus:     "DOWN",
 			expectedServices:   2,
@@ -71,8 +71,8 @@ func TestAPIStatus(t *testing.T) {
 			page: Page{
 				Title:    "Test Status",
 				Status:   "degraded",
-				Up:       []string{"service1"},
-				Degraded: map[string]int{"service2": 30},
+				Up:       []ServiceInfo{{Name: "service1", ResponseTime: 50 * time.Millisecond}},
+				Degraded: map[string]OutageInfo{"service2": {Minutes: 30, ResponseTime: 150 * time.Millisecond}},
 			},
 			expectedStatus:     "DEGRADED",
 			expectedServices:   2,
@@ -83,7 +83,7 @@ func TestAPIStatus(t *testing.T) {
 			page: Page{
 				Title:              "Test Status",
 				Status:             "maintenance",
-				Up:                 []string{"service1", "service2"},
+				Up:                 []ServiceInfo{{Name: "service1", ResponseTime: 0}, {Name: "service2", ResponseTime: 0}},
 				MaintenanceMessage: "Scheduled maintenance in progress",
 			},
 			expectedStatus:     "MAINTENANCE",
@@ -106,9 +106,9 @@ func TestAPIStatus(t *testing.T) {
 			page: Page{
 				Title:    "Test Status",
 				Status:   "danger",
-				Up:       []string{"up-service"},
-				Degraded: map[string]int{"degraded-service": 15},
-				Down:     map[string]int{"down-service": 30},
+				Up:       []ServiceInfo{{Name: "up-service", ResponseTime: 50 * time.Millisecond}},
+				Degraded: map[string]OutageInfo{"degraded-service": {Minutes: 15, ResponseTime: 150 * time.Millisecond}},
+				Down:     map[string]OutageInfo{"down-service": {Minutes: 30, ResponseTime: 200 * time.Millisecond}},
 			},
 			expectedStatus:     "DOWN",
 			expectedServices:   3,
@@ -165,9 +165,9 @@ func TestAPIStatusServiceStatuses(t *testing.T) {
 	page := Page{
 		Title:    "Test Status",
 		Status:   "danger",
-		Up:       []string{"healthy-service"},
-		Degraded: map[string]int{"slow-service": 15},
-		Down:     map[string]int{"broken-service": 60},
+		Up:       []ServiceInfo{{Name: "healthy-service", ResponseTime: 50 * time.Millisecond}},
+		Degraded: map[string]OutageInfo{"slow-service": {Minutes: 15, ResponseTime: 150 * time.Millisecond}},
+		Down:     map[string]OutageInfo{"broken-service": {Minutes: 60, ResponseTime: 200 * time.Millisecond}},
 	}
 
 	handler := APIStatus(page)
@@ -197,11 +197,45 @@ func TestAPIStatusServiceStatuses(t *testing.T) {
 	}
 }
 
+func TestAPIStatusResponseTime(t *testing.T) {
+	page := Page{
+		Title:  "Test Status",
+		Status: "danger",
+		Up:     []ServiceInfo{{Name: "healthy-service", ResponseTime: 50 * time.Millisecond}},
+		Down:   map[string]OutageInfo{"down-service": {Minutes: 60, ResponseTime: 200 * time.Millisecond}},
+	}
+
+	handler := APIStatus(page)
+	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	var response APIResponse
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode JSON response: %v", err)
+	}
+
+	// Find the healthy service and check its response time
+	for _, svc := range response.Services {
+		if svc.Name == "healthy-service" {
+			if svc.ResponseTime != 50 {
+				t.Errorf("expected response time 50ms, got %dms", svc.ResponseTime)
+			}
+		}
+		if svc.Name == "down-service" {
+			if svc.ResponseTime != 200 {
+				t.Errorf("expected response time 200ms, got %dms", svc.ResponseTime)
+			}
+		}
+	}
+}
+
 func TestAPIStatusMethodNotAllowed(t *testing.T) {
 	page := Page{
 		Title:  "Test Status",
 		Status: "success",
-		Up:     []string{"service1"},
+		Up:     []ServiceInfo{{Name: "service1", ResponseTime: 50 * time.Millisecond}},
 	}
 
 	handler := APIStatus(page)

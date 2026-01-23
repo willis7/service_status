@@ -9,13 +9,25 @@ import (
 
 var tpl *template.Template
 
+// ServiceInfo holds information about a service including its response time.
+type ServiceInfo struct {
+	Name         string
+	ResponseTime time.Duration
+}
+
+// OutageInfo holds information about a degraded or down service including its response time.
+type OutageInfo struct {
+	Minutes      int
+	ResponseTime time.Duration
+}
+
 // Page represents the data of the status page.
 type Page struct {
 	Title    string
 	Status   template.HTML
-	Up       []string
-	Degraded map[string]int
-	Down     map[string]int
+	Up       []ServiceInfo
+	Degraded map[string]OutageInfo
+	Down     map[string]OutageInfo
 	Time     string
 	// MaintenanceMessage is displayed when the system is in maintenance mode.
 	// Empty string indicates normal operation.
@@ -49,9 +61,10 @@ func Index(p Page) http.HandlerFunc {
 
 // ServiceStatus represents the status of a single service in the API response.
 type ServiceStatus struct {
-	Name    string `json:"name"`
-	Status  string `json:"status"`
-	Updated string `json:"updated"`
+	Name         string `json:"name"`
+	Status       string `json:"status"`
+	Updated      string `json:"updated"`
+	ResponseTime int64  `json:"response_time_ms,omitempty"`
 }
 
 // APIResponse represents the JSON API response for status endpoint.
@@ -76,29 +89,32 @@ func APIStatus(p Page) http.HandlerFunc {
 		now := time.Now().UTC().Format(time.RFC3339)
 
 		// Add services that are up
-		for _, name := range p.Up {
+		for _, svc := range p.Up {
 			services = append(services, ServiceStatus{
-				Name:    name,
-				Status:  "OK",
-				Updated: now,
+				Name:         svc.Name,
+				Status:       "OK",
+				Updated:      now,
+				ResponseTime: svc.ResponseTime.Milliseconds(),
 			})
 		}
 
 		// Add services that are degraded
-		for name := range p.Degraded {
+		for name, info := range p.Degraded {
 			services = append(services, ServiceStatus{
-				Name:    name,
-				Status:  "DEGRADED",
-				Updated: now,
+				Name:         name,
+				Status:       "DEGRADED",
+				Updated:      now,
+				ResponseTime: info.ResponseTime.Milliseconds(),
 			})
 		}
 
 		// Add services that are down
-		for name := range p.Down {
+		for name, info := range p.Down {
 			services = append(services, ServiceStatus{
-				Name:    name,
-				Status:  "DOWN",
-				Updated: now,
+				Name:         name,
+				Status:       "DOWN",
+				Updated:      now,
+				ResponseTime: info.ResponseTime.Milliseconds(),
 			})
 		}
 
@@ -127,6 +143,6 @@ func APIStatus(p Page) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(data)
+		_, _ = w.Write(data) // Error ignored: client may have disconnected
 	}
 }

@@ -688,3 +688,113 @@ func TestParseCommand(t *testing.T) {
 		})
 	}
 }
+
+func TestPingStatusWithTiming(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "<html><body>Hello World!</body></html>")
+	}))
+	defer ts.Close()
+
+	tc := Ping{Service: Service{URL: ts.URL}}
+	result := tc.StatusWithTiming()
+
+	if result.Err != nil {
+		t.Errorf("expected no error, got %v", result.Err)
+	}
+	if result.ResponseTime <= 0 {
+		t.Errorf("expected positive response time, got %v", result.ResponseTime)
+	}
+}
+
+func TestGrepStatusWithTiming(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "<html><body>Hello World!</body></html>")
+	}))
+	defer ts.Close()
+
+	tc := Grep{Service: Service{URL: ts.URL, Regex: "Hello World!"}}
+	result := tc.StatusWithTiming()
+
+	if result.Err != nil {
+		t.Errorf("expected no error, got %v", result.Err)
+	}
+	if result.ResponseTime <= 0 {
+		t.Errorf("expected positive response time, got %v", result.ResponseTime)
+	}
+}
+
+func TestTCPStatusWithTiming(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to create test listener: %v", err)
+	}
+	defer listener.Close()
+
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		t.Fatalf("failed to get port: %v", err)
+	}
+
+	tc := TCP{Service: Service{URL: "127.0.0.1", Port: port}}
+	result := tc.StatusWithTiming()
+
+	if result.Err != nil {
+		t.Errorf("expected no error, got %v", result.Err)
+	}
+	if result.ResponseTime <= 0 {
+		t.Errorf("expected positive response time, got %v", result.ResponseTime)
+	}
+}
+
+func TestICMPStatusWithTiming(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping ICMP test in short mode")
+	}
+
+	ic := ICMP{Service: Service{URL: "127.0.0.1"}}
+	result := ic.StatusWithTiming()
+
+	if result.Err != nil {
+		t.Errorf("expected no error pinging localhost, got %v", result.Err)
+	}
+	if result.ResponseTime <= 0 {
+		t.Errorf("expected positive response time, got %v", result.ResponseTime)
+	}
+}
+
+func TestScriptStatusWithTiming(t *testing.T) {
+	sc := Script{Service: Service{Command: "true"}}
+	result := sc.StatusWithTiming()
+
+	if result.Err != nil {
+		t.Errorf("expected no error for exit code 0, got %v", result.Err)
+	}
+	if result.ResponseTime <= 0 {
+		t.Errorf("expected positive response time, got %v", result.ResponseTime)
+	}
+}
+
+func TestStatusWithTimingReturnsError(t *testing.T) {
+	// Test that StatusWithTiming correctly captures errors
+	tc := Ping{Service: Service{URL: "http://invalid.url.that.does.not.exist"}}
+	result := tc.StatusWithTiming()
+
+	if result.Err == nil {
+		t.Error("expected error for invalid URL, got nil")
+	}
+	if result.ResponseTime <= 0 {
+		t.Errorf("expected positive response time even on error, got %v", result.ResponseTime)
+	}
+}
+
+func TestScriptStatusWithTimingDegraded(t *testing.T) {
+	sc := Script{Service: Service{Command: "sh -c 'exit 80'"}}
+	result := sc.StatusWithTiming()
+
+	if result.Err != ErrServiceDegraded {
+		t.Errorf("expected ErrServiceDegraded, got %v", result.Err)
+	}
+	if result.ResponseTime <= 0 {
+		t.Errorf("expected positive response time, got %v", result.ResponseTime)
+	}
+}

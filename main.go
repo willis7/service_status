@@ -179,9 +179,9 @@ func main() {
 	// Check for maintenance mode
 	maintenanceMsg := config.GetMaintenanceMessage()
 
-	down := make(map[string]int)
-	degraded := make(map[string]int)
-	var up []string
+	down := make(map[string]status.OutageInfo)
+	degraded := make(map[string]status.OutageInfo)
+	var up []status.ServiceInfo
 
 	// If in maintenance mode, skip status checks and mark all services as up
 	if maintenanceMsg != "" {
@@ -189,21 +189,24 @@ func main() {
 		log.Printf("skipping status checks for %d services", len(services))
 		for _, service := range services {
 			svc := service.GetService()
-			up = append(up, svc.DisplayName())
+			up = append(up, status.ServiceInfo{
+				Name:         svc.DisplayName(),
+				ResponseTime: 0,
+			})
 		}
 	} else {
 		for _, service := range services {
-			err := service.Status()
+			result := service.StatusWithTiming()
 			svc := service.GetService()
 			displayName := svc.DisplayName()
 
 			// Record status to storage if enabled
 			if storage != nil {
 				var errMsg string
-				if err != nil {
-					errMsg = err.Error()
+				if result.Err != nil {
+					errMsg = result.Err.Error()
 				}
-				isUp := status.IsOperational(err)
+				isUp := status.IsOperational(result.Err)
 				if storageErr := storage.RecordStatus(svc.URL, isUp, errMsg); storageErr != nil {
 					log.Printf("storage: failed to record status: %v", storageErr)
 				}
@@ -212,17 +215,26 @@ func main() {
 				}
 			}
 
-			if err != nil {
-				if status.IsDegraded(err) {
-					degraded[displayName] = defaultOutageMinutes
+			if result.Err != nil {
+				if status.IsDegraded(result.Err) {
+					degraded[displayName] = status.OutageInfo{
+						Minutes:      defaultOutageMinutes,
+						ResponseTime: result.ResponseTime,
+					}
 					notifyManager.CheckAndNotify(svc.URL, true) // Degraded is still partially available
 				} else {
-					down[displayName] = defaultOutageMinutes
+					down[displayName] = status.OutageInfo{
+						Minutes:      defaultOutageMinutes,
+						ResponseTime: result.ResponseTime,
+					}
 					notifyManager.CheckAndNotify(svc.URL, false)
 				}
 				continue
 			}
-			up = append(up, displayName)
+			up = append(up, status.ServiceInfo{
+				Name:         displayName,
+				ResponseTime: result.ResponseTime,
+			})
 			notifyManager.CheckAndNotify(svc.URL, true)
 		}
 	}

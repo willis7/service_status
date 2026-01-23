@@ -61,10 +61,10 @@
 {{ if .Down }}
 <ul class="list-group">
 	<li class="list-group-item list-group-item-danger">Outage</li>
-	{{range $url, $time := .Down}}
+	{{range $url, $info := .Down}}
 	<li class="list-group-item">
 	<span class="badge"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
-	{{$time}} min</span>
+	{{$info.Minutes}} min</span>
 		{{$url}}
 	</li>
 	{{end}}
@@ -74,10 +74,10 @@
 {{ if .Degraded }}
 <ul class="list-group">
 	<li class="list-group-item list-group-item-warning">Degraded</li>
-	{{range $url, $time := .Degraded}}
+	{{range $url, $info := .Degraded}}
 	<li class="list-group-item">
 	<span class="badge"><span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
-	{{$time}} min</span>
+	{{$info.Minutes}} min</span>
 		{{$url}}
 	</li>
 	{{end}}
@@ -89,8 +89,8 @@
 	<li class="list-group-item list-group-item-success">Operational</li>
 	{{range .Up}}
 	<li class="list-group-item">
-		<span class="badge"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span></span>
-		{{.}}
+		<span class="badge"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> {{.ResponseTime.Milliseconds}}ms</span>
+		{{.Name}}
 	</li>
 	{{end}}
 </ul>

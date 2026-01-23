@@ -96,7 +96,43 @@
 </ul>
 {{ end }}
 
+{{ if .PastIncidents }}
+<h3>Past Incidents</h3>
+<ul class="list-group">
+	{{range .PastIncidents}}
+	<li class="list-group-item">
+		<div class="row">
+			<div class="col-sm-4">
+				<strong>{{.ServiceName}}</strong>
+			</div>
+			<div class="col-sm-4">
+				<span class="text-muted">
+					{{.StartedAt}}
+					{{ if not .IsOngoing }} - {{.EndedAt}}{{ end }}
+				</span>
+			</div>
+			<div class="col-sm-4 text-right">
+				{{ if .IsOngoing }}
+				<span class="label label-danger">Ongoing</span>
+				{{ else if lt .Duration.Minutes 1.0 }}
+				<span class="label label-default">&lt; 1 min</span>
+				{{ else }}
+				<span class="label label-default">{{printf "%.0f" .Duration.Minutes}} min</span>
+				{{ end }}
+			</div>
+		</div>
+		{{ if .Message }}
+		<div class="text-muted small">{{.Message}}</div>
+		{{ end }}
+	</li>
+	{{end}}
+</ul>
+{{ end }}
+
 <hr>
+<footer class="text-muted small">
+	Last updated: {{.Time}}
+</footer>
 </div>
 </body>
 </html>

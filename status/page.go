@@ -21,6 +21,16 @@ type OutageInfo struct {
 	ResponseTime time.Duration
 }
 
+// IncidentInfo holds information about a past incident for display.
+type IncidentInfo struct {
+	ServiceName string
+	StartedAt   string        // Formatted start time
+	EndedAt     string        // Formatted end time (empty if ongoing)
+	Duration    time.Duration // Duration of the incident
+	Message     string        // Error message
+	IsOngoing   bool          // Whether the incident is still active
+}
+
 // Page represents the data of the status page.
 type Page struct {
 	Title    string
@@ -32,6 +42,8 @@ type Page struct {
 	// MaintenanceMessage is displayed when the system is in maintenance mode.
 	// Empty string indicates normal operation.
 	MaintenanceMessage string
+	// PastIncidents holds recent resolved incidents for display.
+	PastIncidents []IncidentInfo
 }
 
 // StatusHTML converts a known status string to template.HTML.
@@ -67,12 +79,23 @@ type ServiceStatus struct {
 	ResponseTime int64  `json:"response_time_ms,omitempty"`
 }
 
+// APIIncident represents an incident in the JSON API response.
+type APIIncident struct {
+	ServiceName string `json:"service_name"`
+	StartedAt   string `json:"started_at"`
+	EndedAt     string `json:"ended_at,omitempty"`
+	DurationMs  int64  `json:"duration_ms"`
+	Message     string `json:"message,omitempty"`
+	IsOngoing   bool   `json:"is_ongoing"`
+}
+
 // APIResponse represents the JSON API response for status endpoint.
 type APIResponse struct {
 	OverallStatus      string          `json:"overall_status"`
 	Services           []ServiceStatus `json:"services"`
 	Updated            string          `json:"updated"`
 	MaintenanceMessage string          `json:"maintenance_message,omitempty"`
+	PastIncidents      []APIIncident   `json:"past_incidents,omitempty"`
 }
 
 // APIStatus is a HandlerFunc that returns the status page data as JSON.
@@ -129,11 +152,28 @@ func APIStatus(p Page) http.HandlerFunc {
 			overallStatus = "MAINTENANCE"
 		}
 
+		// Convert past incidents for API response
+		var apiIncidents []APIIncident
+		for _, inc := range p.PastIncidents {
+			apiInc := APIIncident{
+				ServiceName: inc.ServiceName,
+				StartedAt:   inc.StartedAt,
+				DurationMs:  inc.Duration.Milliseconds(),
+				Message:     inc.Message,
+				IsOngoing:   inc.IsOngoing,
+			}
+			if !inc.IsOngoing {
+				apiInc.EndedAt = inc.EndedAt
+			}
+			apiIncidents = append(apiIncidents, apiInc)
+		}
+
 		response := APIResponse{
 			OverallStatus:      overallStatus,
 			Services:           services,
 			Updated:            now,
 			MaintenanceMessage: p.MaintenanceMessage,
+			PastIncidents:      apiIncidents,
 		}
 
 		// Encode to buffer first to avoid partial writes on error

@@ -19,6 +19,9 @@ func init() {
 	status.LoadTemplate()
 }
 
+// defaultIncidentHistoryLimit is the default number of past incidents to display.
+const defaultIncidentHistoryLimit = 10
+
 // Config holds a list of services to be checked and notification settings.
 type Config struct {
 	Services  []status.Service        `json:"services"`
@@ -34,6 +37,11 @@ type Config struct {
 	// MaintenanceMessage is an inline maintenance message.
 	// If set, the system enters maintenance mode. MaintenanceFile takes precedence.
 	MaintenanceMessage string `json:"maintenance_message,omitempty"`
+	// IncidentHistoryLimit is the maximum number of past incidents to display (default: 10).
+	IncidentHistoryLimit int `json:"incident_history_limit,omitempty"`
+	// MinIncidentDuration is the minimum incident duration in seconds to display (default: 0).
+	// Incidents shorter than this duration are not shown in the history.
+	MinIncidentDuration int `json:"min_incident_duration,omitempty"`
 }
 
 // CreateFactories returns a slice of Pinger concrete services.
@@ -207,11 +215,14 @@ func main() {
 					errMsg = result.Err.Error()
 				}
 				isUp := status.IsOperational(result.Err)
+
+				// Track incident transitions and update state atomically
+				if _, storageErr := storage.RecordStatusTransition(svc.URL, displayName, isUp, errMsg); storageErr != nil {
+					log.Printf("storage: failed to record status transition: %v", storageErr)
+				}
+
 				if storageErr := storage.RecordStatus(svc.URL, isUp, errMsg); storageErr != nil {
 					log.Printf("storage: failed to record status: %v", storageErr)
-				}
-				if storageErr := storage.UpdateServiceState(svc.URL, isUp); storageErr != nil {
-					log.Printf("storage: failed to update state: %v", storageErr)
 				}
 			}
 
@@ -252,6 +263,25 @@ func main() {
 		overallStatus = "success"
 	}
 
+	// Fetch past incidents if storage is enabled
+	var pastIncidents []status.IncidentInfo
+	if storage != nil {
+		historyLimit := config.IncidentHistoryLimit
+		if historyLimit <= 0 {
+			historyLimit = defaultIncidentHistoryLimit
+		}
+		minDuration := time.Duration(config.MinIncidentDuration) * time.Second
+
+		incidents, err := storage.GetRecentResolvedIncidents(historyLimit, minDuration)
+		if err != nil {
+			log.Printf("storage: failed to get recent incidents: %v", err)
+		} else {
+			for _, inc := range incidents {
+				pastIncidents = append(pastIncidents, inc.ToIncidentInfo())
+			}
+		}
+	}
+
 	p := status.Page{
 		Title:              "My Status",
 		Status:             status.StatusHTML(overallStatus),
@@ -260,6 +290,7 @@ func main() {
 		Down:               down,
 		Time:               time.Now().Format("2006-01-02 15:04:05"),
 		MaintenanceMessage: maintenanceMsg,
+		PastIncidents:      pastIncidents,
 	}
 
 	// create and serve the page

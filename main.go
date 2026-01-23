@@ -252,6 +252,7 @@ func main() {
 
 	// create and serve the page
 	http.HandleFunc("/", status.Index(p))
+	http.HandleFunc("/api/status", status.APIStatus(p))
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("server error: %v", err)
 	}

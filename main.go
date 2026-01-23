@@ -11,9 +11,6 @@ import (
 	"github.com/willis7/service_status/status"
 )
 
-// defaultOutageMinutes is the default duration in minutes to display for service outages.
-const defaultOutageMinutes = 60
-
 func init() {
 	status.LoadTemplate()
 }
@@ -72,81 +69,11 @@ func main() {
 	// Check for maintenance mode
 	maintenanceMsg := cfg.GetMaintenanceMessage()
 
-	down := make(map[string]status.OutageInfo)
-	degraded := make(map[string]status.OutageInfo)
-	var up []status.ServiceInfo
+	// Check all services and categorize by status
+	up, degraded, down := status.CheckAllServices(services, storage, notifyManager, maintenanceMsg)
 
-	// If in maintenance mode, skip status checks and mark all services as up
-	if maintenanceMsg != "" {
-		log.Printf("maintenance mode active: %s", maintenanceMsg)
-		log.Printf("skipping status checks for %d services", len(services))
-		for _, service := range services {
-			svc := service.GetService()
-			up = append(up, status.ServiceInfo{
-				Name:         svc.DisplayName(),
-				ResponseTime: 0,
-			})
-		}
-	} else {
-		for _, service := range services {
-			result := service.StatusWithTiming()
-			svc := service.GetService()
-			displayName := svc.DisplayName()
-
-			// Record status to storage if enabled
-			if storage != nil {
-				var errMsg string
-				if result.Err != nil {
-					errMsg = result.Err.Error()
-				}
-				isUp := status.IsOperational(result.Err)
-
-				// Track incident transitions and update state atomically
-				if _, storageErr := storage.RecordStatusTransition(svc.URL, displayName, isUp, errMsg); storageErr != nil {
-					log.Printf("storage: failed to record status transition: %v", storageErr)
-				}
-
-				if storageErr := storage.RecordStatus(svc.URL, isUp, errMsg); storageErr != nil {
-					log.Printf("storage: failed to record status: %v", storageErr)
-				}
-			}
-
-			if result.Err != nil {
-				if status.IsDegraded(result.Err) {
-					degraded[displayName] = status.OutageInfo{
-						Minutes:      defaultOutageMinutes,
-						ResponseTime: result.ResponseTime,
-					}
-					notifyManager.CheckAndNotify(svc.URL, true) // Degraded is still partially available
-				} else {
-					down[displayName] = status.OutageInfo{
-						Minutes:      defaultOutageMinutes,
-						ResponseTime: result.ResponseTime,
-					}
-					notifyManager.CheckAndNotify(svc.URL, false)
-				}
-				continue
-			}
-			up = append(up, status.ServiceInfo{
-				Name:         displayName,
-				ResponseTime: result.ResponseTime,
-			})
-			notifyManager.CheckAndNotify(svc.URL, true)
-		}
-	}
-
-	// Determine overall status (maintenance takes precedence over all other states)
-	var overallStatus string
-	switch {
-	case maintenanceMsg != "":
-		overallStatus = "maintenance"
-	case len(down) > 0:
-		overallStatus = "danger"
-	case len(degraded) > 0:
-		overallStatus = "degraded"
-	default:
-		overallStatus = "success"
-	}
+	// Determine overall status
+	overallStatus := status.DetermineOverallStatus(maintenanceMsg, degraded, down)
 
 	// Fetch past incidents if storage is enabled
 	var pastIncidents []status.IncidentInfo

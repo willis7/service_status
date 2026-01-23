@@ -1,0 +1,46 @@
+# Example YAML configuration for service_status
+# This file demonstrates the YAML format as an alternative to config.json
+# Environment variables with SERVICE_STATUS_ prefix can override these values
+
+# Services to monitor
+services:
+  - type: ping
+    url: http://google.com
+    name: Google
+
+  - type: grep
+    url: https://stackoverflow.com/
+    regex: "Ask Question"
+    name: Stack Overflow
+
+  - type: grep
+    url: https://www.bbc.co.uk/
+    regex: "hello world"
+    name: BBC News
+
+# Optional: Notification settings
+# notifiers:
+#   - type: webhook
+#     webhook_url: http://your-webhook-endpoint.com/notify
+#   - type: slack
+#     webhook_url: https://hooks.slack.com/services/XXX/YYY/ZZZ
+#     channel: "#alerts"
+#     username: StatusBot
+#   - type: discord
+#     webhook_url: https://discord.com/api/webhooks/XXX/YYY
+#     username: StatusBot
+#   - type: log  # For debugging - logs alerts to stdout
+
+# Optional: Alert cooldown in seconds (default: 300 = 5 minutes)
+# alert_cooldown: 300
+
+# Optional: SQLite storage path for persistence (default: disabled)
+# storage_path: "status.db"
+
+# Optional: Maintenance mode settings
+# maintenance_file: "/path/to/maintenance.txt"  # File-based maintenance message
+# maintenance_message: "System under maintenance"  # Inline maintenance message
+
+# Optional: Incident history settings
+# incident_history_limit: 10  # Max incidents to display (default: 10)
+# min_incident_duration: 60  # Min incident duration in seconds to display (default: 0)

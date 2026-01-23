@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/willis7/service_status/config"
 	"github.com/willis7/service_status/status"
 )
 
@@ -118,8 +119,8 @@ func TestCreateFactories(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			config := Config{Services: tc.services}
-			pingers, err := config.CreateFactories()
+			cfg := &config.Config{Services: tc.services}
+			pingers, err := cfg.CreateFactories()
 
 			if tc.wantErr && err == nil {
 				t.Error("expected error, got nil")
@@ -146,8 +147,8 @@ func TestCreateFactoriesIteratesAllServices(t *testing.T) {
 		{Type: "grep", URL: "http://service3.com", Regex: "pattern"},
 	}
 
-	config := Config{Services: services}
-	pingers, err := config.CreateFactories()
+	cfg := &config.Config{Services: services}
+	pingers, err := cfg.CreateFactories()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -179,19 +180,19 @@ func TestCreateFactoriesIteratesAllServices(t *testing.T) {
 	}
 }
 
-func TestLoadConfigurationSuccess(t *testing.T) {
-	config, err := LoadConfiguration("config.json")
+func TestLoadConfigSuccess(t *testing.T) {
+	cfg, err := config.LoadConfig("config.json")
 	if err != nil {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	if len(config.Services) == 0 {
+	if len(cfg.Services) == 0 {
 		t.Error("expected at least one service in config")
 	}
 }
 
-func TestLoadConfigurationFileNotFound(t *testing.T) {
-	_, err := LoadConfiguration("nonexistent.json")
+func TestLoadConfigFileNotFound(t *testing.T) {
+	_, err := config.LoadConfig("nonexistent.json")
 	if err == nil {
 		t.Error("expected error for nonexistent file, got nil")
 	}
@@ -199,35 +200,35 @@ func TestLoadConfigurationFileNotFound(t *testing.T) {
 
 func TestConfigStoragePath(t *testing.T) {
 	// Test that the config struct has the StoragePath field
-	config := Config{
+	cfg := &config.Config{
 		Services:      []status.Service{},
 		StoragePath:   "test.db",
 		AlertCooldown: 300,
 	}
 
-	if config.StoragePath != "test.db" {
-		t.Errorf("expected storage_path to be 'test.db', got %s", config.StoragePath)
+	if cfg.StoragePath != "test.db" {
+		t.Errorf("expected storage_path to be 'test.db', got %s", cfg.StoragePath)
 	}
 }
 
 func TestConfigStoragePathEmpty(t *testing.T) {
 	// Test that empty storage_path is valid (storage disabled by default)
-	config := Config{
+	cfg := &config.Config{
 		Services:    []status.Service{},
 		StoragePath: "",
 	}
 
-	if config.StoragePath != "" {
-		t.Errorf("expected storage_path to be empty, got %s", config.StoragePath)
+	if cfg.StoragePath != "" {
+		t.Errorf("expected storage_path to be empty, got %s", cfg.StoragePath)
 	}
 }
 
 func TestGetMaintenanceMessageFromInline(t *testing.T) {
-	config := Config{
+	cfg := &config.Config{
 		MaintenanceMessage: "System under maintenance for upgrade",
 	}
 
-	msg := config.GetMaintenanceMessage()
+	msg := cfg.GetMaintenanceMessage()
 	if msg != "System under maintenance for upgrade" {
 		t.Errorf("expected inline message, got %q", msg)
 	}
@@ -242,11 +243,11 @@ func TestGetMaintenanceMessageFromFile(t *testing.T) {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	config := Config{
+	cfg := &config.Config{
 		MaintenanceFile: maintenanceFile,
 	}
 
-	msg := config.GetMaintenanceMessage()
+	msg := cfg.GetMaintenanceMessage()
 	if msg != "Scheduled maintenance in progress" {
 		t.Errorf("expected file message, got %q", msg)
 	}
@@ -261,12 +262,12 @@ func TestGetMaintenanceMessageFileTakesPrecedence(t *testing.T) {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	config := Config{
+	cfg := &config.Config{
 		MaintenanceFile:    maintenanceFile,
 		MaintenanceMessage: "Inline message",
 	}
 
-	msg := config.GetMaintenanceMessage()
+	msg := cfg.GetMaintenanceMessage()
 	if msg != "File message" {
 		t.Errorf("expected file message to take precedence, got %q", msg)
 	}
@@ -281,33 +282,33 @@ func TestGetMaintenanceMessageEmptyFileUsesInline(t *testing.T) {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	config := Config{
+	cfg := &config.Config{
 		MaintenanceFile:    maintenanceFile,
 		MaintenanceMessage: "Inline message",
 	}
 
-	msg := config.GetMaintenanceMessage()
+	msg := cfg.GetMaintenanceMessage()
 	if msg != "Inline message" {
 		t.Errorf("expected inline message when file is empty, got %q", msg)
 	}
 }
 
 func TestGetMaintenanceMessageNonexistentFileUsesInline(t *testing.T) {
-	config := Config{
+	cfg := &config.Config{
 		MaintenanceFile:    "/nonexistent/path/maintenance.txt",
 		MaintenanceMessage: "Inline message",
 	}
 
-	msg := config.GetMaintenanceMessage()
+	msg := cfg.GetMaintenanceMessage()
 	if msg != "Inline message" {
 		t.Errorf("expected inline message when file doesn't exist, got %q", msg)
 	}
 }
 
 func TestGetMaintenanceMessageNoMaintenance(t *testing.T) {
-	config := Config{}
+	cfg := &config.Config{}
 
-	msg := config.GetMaintenanceMessage()
+	msg := cfg.GetMaintenanceMessage()
 	if msg != "" {
 		t.Errorf("expected empty message when no maintenance configured, got %q", msg)
 	}
@@ -322,11 +323,11 @@ func TestGetMaintenanceMessageTrimsWhitespace(t *testing.T) {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	config := Config{
+	cfg := &config.Config{
 		MaintenanceFile: maintenanceFile,
 	}
 
-	msg := config.GetMaintenanceMessage()
+	msg := cfg.GetMaintenanceMessage()
 	if msg != "Message with whitespace" {
 		t.Errorf("expected trimmed message, got %q", msg)
 	}
@@ -341,12 +342,12 @@ func TestGetMaintenanceMessageWhitespaceOnlyFileUsesInline(t *testing.T) {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	config := Config{
+	cfg := &config.Config{
 		MaintenanceFile:    maintenanceFile,
 		MaintenanceMessage: "Inline fallback",
 	}
 
-	msg := config.GetMaintenanceMessage()
+	msg := cfg.GetMaintenanceMessage()
 	if msg != "Inline fallback" {
 		t.Errorf("expected inline message when file has only whitespace, got %q", msg)
 	}

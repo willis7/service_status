@@ -1,14 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
+	"github.com/willis7/service_status/config"
 	"github.com/willis7/service_status/status"
 )
 
@@ -17,117 +16,6 @@ const defaultOutageMinutes = 60
 
 func init() {
 	status.LoadTemplate()
-}
-
-// defaultIncidentHistoryLimit is the default number of past incidents to display.
-const defaultIncidentHistoryLimit = 10
-
-// Config holds a list of services to be checked and notification settings.
-type Config struct {
-	Services  []status.Service        `json:"services"`
-	Notifiers []status.NotifierConfig `json:"notifiers,omitempty"`
-	// AlertCooldown is the minimum time between alerts for the same service (in seconds)
-	AlertCooldown int `json:"alert_cooldown,omitempty"`
-	// StoragePath is the path to the SQLite database for persistent storage.
-	// If empty, storage is disabled (opt-in feature).
-	StoragePath string `json:"storage_path,omitempty"`
-	// MaintenanceFile is the path to a file containing maintenance message.
-	// If the file exists and has content, the system enters maintenance mode.
-	MaintenanceFile string `json:"maintenance_file,omitempty"`
-	// MaintenanceMessage is an inline maintenance message.
-	// If set, the system enters maintenance mode. MaintenanceFile takes precedence.
-	MaintenanceMessage string `json:"maintenance_message,omitempty"`
-	// IncidentHistoryLimit is the maximum number of past incidents to display (default: 10).
-	IncidentHistoryLimit int `json:"incident_history_limit,omitempty"`
-	// MinIncidentDuration is the minimum incident duration in seconds to display (default: 0).
-	// Incidents shorter than this duration are not shown in the history.
-	MinIncidentDuration int `json:"min_incident_duration,omitempty"`
-}
-
-// CreateFactories returns a slice of Pinger concrete services.
-func (c *Config) CreateFactories() ([]status.Pinger, error) {
-	var checks []status.Pinger
-
-	for _, service := range c.Services {
-		switch service.Type {
-		case "ping":
-			pf := status.PingFactory{}
-			p, err := pf.Create(service)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create ping object: %w", err)
-			}
-			checks = append(checks, p)
-		case "grep":
-			gf := status.GrepFactory{}
-			g, err := gf.Create(service)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create grep object: %w", err)
-			}
-			checks = append(checks, g)
-		case "tcp":
-			tf := status.TCPFactory{}
-			t, err := tf.Create(service)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create tcp object: %w", err)
-			}
-			checks = append(checks, t)
-		case "icmp":
-			icf := status.ICMPFactory{}
-			ic, err := icf.Create(service)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create icmp object: %w", err)
-			}
-			checks = append(checks, ic)
-		case "script":
-			sf := status.ScriptFactory{}
-			sc, err := sf.Create(service)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create script object: %w", err)
-			}
-			checks = append(checks, sc)
-		}
-	}
-
-	return checks, nil
-}
-
-// GetMaintenanceMessage returns the maintenance message if maintenance mode is active.
-// It first checks for a maintenance file, then falls back to inline message.
-// Returns empty string if maintenance mode is not active.
-func (c *Config) GetMaintenanceMessage() string {
-	// Check maintenance file first (takes precedence)
-	if c.MaintenanceFile != "" {
-		content, err := os.ReadFile(c.MaintenanceFile)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				log.Printf("warning: failed to read maintenance file %s: %v", c.MaintenanceFile, err)
-			}
-			// Fall through to inline message
-		} else {
-			msg := strings.TrimSpace(string(content))
-			if msg != "" {
-				return msg
-			}
-		}
-	}
-	// Fall back to inline message
-	return c.MaintenanceMessage
-}
-
-// LoadConfiguration takes a configuration file and returns a Config struct.
-func LoadConfiguration(file string) (Config, error) {
-	var config Config
-	configFile, err := os.Open(file)
-	if err != nil {
-		return config, err
-	}
-	defer configFile.Close()
-
-	jsonParser := json.NewDecoder(configFile)
-	if err := jsonParser.Decode(&config); err != nil {
-		return config, err
-	}
-	return config, nil
 }
 
 func main() {
@@ -139,33 +27,30 @@ func main() {
 
 	fmt.Println("Starting the application...")
 	// read the config file to determine which services need to be checked
-	config, err := LoadConfiguration(configPath)
+	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		log.Fatalf("failed to load configuration: %v", err)
 	}
 
-	services, err := config.CreateFactories()
+	services, err := cfg.CreateFactories()
 	if err != nil {
 		log.Fatalf("create factories: %v", err)
 	}
 
 	// Setup storage if configured (opt-in feature)
 	var storage *status.Storage
-	if config.StoragePath != "" {
+	if cfg.StoragePath != "" {
 		var storageErr error
-		storage, storageErr = status.NewStorage(config.StoragePath)
+		storage, storageErr = status.NewStorage(cfg.StoragePath)
 		if storageErr != nil {
 			log.Fatalf("failed to initialize storage: %v", storageErr)
 		}
 		defer storage.Close()
-		log.Printf("storage enabled: %s", config.StoragePath)
+		log.Printf("storage enabled: %s", cfg.StoragePath)
 	}
 
 	// Setup notification manager
-	cooldown := 5 * time.Minute // default
-	if config.AlertCooldown > 0 {
-		cooldown = time.Duration(config.AlertCooldown) * time.Second
-	}
+	cooldown := time.Duration(cfg.AlertCooldown) * time.Second
 	notifyManager := status.NewNotificationManager(cooldown)
 
 	// Connect storage to notification manager for recording alerts
@@ -174,7 +59,7 @@ func main() {
 	}
 
 	// Add configured notifiers
-	for _, notifierConfig := range config.Notifiers {
+	for _, notifierConfig := range cfg.Notifiers {
 		notifier, err := status.CreateNotifier(notifierConfig)
 		if err != nil {
 			log.Printf("failed to create notifier %s: %v", notifierConfig.Type, err)
@@ -185,7 +70,7 @@ func main() {
 	}
 
 	// Check for maintenance mode
-	maintenanceMsg := config.GetMaintenanceMessage()
+	maintenanceMsg := cfg.GetMaintenanceMessage()
 
 	down := make(map[string]status.OutageInfo)
 	degraded := make(map[string]status.OutageInfo)
@@ -266,13 +151,9 @@ func main() {
 	// Fetch past incidents if storage is enabled
 	var pastIncidents []status.IncidentInfo
 	if storage != nil {
-		historyLimit := config.IncidentHistoryLimit
-		if historyLimit <= 0 {
-			historyLimit = defaultIncidentHistoryLimit
-		}
-		minDuration := time.Duration(config.MinIncidentDuration) * time.Second
+		minDuration := time.Duration(cfg.MinIncidentDuration) * time.Second
 
-		incidents, err := storage.GetRecentResolvedIncidents(historyLimit, minDuration)
+		incidents, err := storage.GetRecentResolvedIncidents(cfg.IncidentHistoryLimit, minDuration)
 		if err != nil {
 			log.Printf("storage: failed to get recent incidents: %v", err)
 		} else {

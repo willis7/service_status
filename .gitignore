@@ -1,6 +1,9 @@
 # Created by https://www.gitignore.io/api/go,visualstudiocode
 
 ### Go ###
+# Build output directory
+bin/
+
 # Binaries for programs and plugins
 *.exe
 *.dll

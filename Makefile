@@ -1,21 +1,24 @@
 NAME = status
 PWD := $(MKPATH:%/Makefile=%)
+BIN_DIR = bin
 
 clean:
 	cd "$(PWD)"
 	rm -rf vendor
+	rm -rf $(BIN_DIR)
 
 install:
 	glide install
 
 build:
-	go build -race -o $(NAME)
+	mkdir -p $(BIN_DIR)
+	go build -race -o $(BIN_DIR)/$(NAME)
 
 run:
 	go run main.go config.json
 
 start:
-	./$(NAME) config.json
+	./$(BIN_DIR)/$(NAME) config.json
 
 test:
 	go test -race -v $(shell glide novendor)

@@ -6,7 +6,7 @@ This document provides guidance for AI coding agents working in this repository.
 
 Go service status monitoring application that generates a static status page. Uses the standard library `net/http` for the web server and `html/template` for templating.
 
-**Go Version:** 1.8+ (legacy project, uses Glide for dependencies)
+**Go Version:** 1.21+ (uses Go modules for dependency management)
 
 ## Build/Lint/Test Commands
 
@@ -182,7 +182,7 @@ Services are defined in `config.json`:
 - Always run tests with `-race` flag for race condition detection
 - Use `httptest.NewServer` for HTTP mocking in tests
 - Check errors before deferring close operations (current code has a bug in `LoadConfiguration`)
-- This is a legacy project using Glide; consider suggesting migration to Go modules
+- Run `go mod tidy` after adding or removing dependencies
 
 ## Landing the Plane (Session Completion)
 

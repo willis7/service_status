@@ -1,14 +1,11 @@
 NAME = status
-PWD := $(MKPATH:%/Makefile=%)
 BIN_DIR = bin
 
 clean:
-	cd "$(PWD)"
-	rm -rf vendor
 	rm -rf $(BIN_DIR)
 
-install:
-	glide install
+deps:
+	go mod download
 
 build:
 	mkdir -p $(BIN_DIR)
@@ -21,16 +18,16 @@ start:
 	./$(BIN_DIR)/$(NAME) config.json
 
 test:
-	go test -race -v $(shell glide novendor)
+	go test -race -v ./...
 
 coverage:
-	go test -race -cover -v $(shell glide novendor)
+	go test -race -cover -v ./...
 
 vet:
-	go vet $(shell glide novendor)
+	go vet ./...
 
 lint:
-	golint $(shell glide novendor)
+	golint ./...
 
 docker-build:
 	docker build --rm -t willis7/status .

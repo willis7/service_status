@@ -25,14 +25,19 @@ jobs:
       - name: Display Go version
         run: go version
 
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+
       - name: Build
-        run: go build -race -o status
+        run: task build
 
       - name: Test
-        run: go test -race -v ./...
+        run: task test
 
       - name: Vet
-        run: go vet ./...
+        run: task vet
 
       - name: Coverage
-        run: go test -cover -v ./status
+        run: task coverage

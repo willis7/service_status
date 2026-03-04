@@ -4,6 +4,8 @@ version: '3'
 vars:
   NAME: status
   BIN_DIR: bin
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
 
 tasks:
   default:
@@ -26,7 +28,7 @@ tasks:
     deps: [clean]
     cmds:
       - mkdir -p {{.BIN_DIR}}
-      - go build -race -o {{.BIN_DIR}}/{{.NAME}}
+      - go build -race -ldflags="-X 'github.com/willis7/service_status/cmd.Version={{.VERSION}}'" -o {{.BIN_DIR}}/{{.NAME}}
 
   run:
     desc: Run the application directly (development)

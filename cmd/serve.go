@@ -7,20 +7,18 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/willis7/service_status/config"
 	"github.com/willis7/service_status/status"
 )
 
 var serveCmd = &cobra.Command{
-	Use:   "serve [config-path]",
+	Use:   "serve",
 	Short: "Start the status HTTP server",
-	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		configPath := args[0]
-
 		fmt.Println("Starting the application...")
 		// read the config file to determine which services need to be checked
-		cfg, err := config.LoadConfig(configPath)
+		cfg, err := config.LoadConfigWithViper(viper.GetViper())
 		if err != nil {
 			log.Fatalf("failed to load configuration: %v", err)
 		}
@@ -100,7 +98,11 @@ var serveCmd = &cobra.Command{
 		// create and serve the page
 		http.HandleFunc("/", status.Index(p))
 		http.HandleFunc("/api/status", status.APIStatus(p))
-		if err := http.ListenAndServe(":8080", nil); err != nil {
+
+		port := viper.GetInt("port")
+		addr := fmt.Sprintf(":%d", port)
+		log.Printf("server starting on %s", addr)
+		if err := http.ListenAndServe(addr, nil); err != nil {
 			log.Fatalf("server error: %v", err)
 		}
 	},
